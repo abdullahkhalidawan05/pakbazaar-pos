@@ -1,0 +1,3175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PakBazaar — Dual Wholesale & Retail POS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0f766e;
+      --primary-hover: #0d655e;
+      --primary-light: #f0fdfa;
+      --primary-border: #99f6e4;
+      --wholesale: #1e3a8a;
+      --wholesale-hover: #172554;
+      --wholesale-light: #eff6ff;
+      --wholesale-border: #bfdbfe;
+      --accent: #059669;
+      --ink: #0f172a;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-500: #64748b;
+      --slate-400: #94a3b8;
+      --slate-200: #e2e8f0;
+      --slate-100: #f1f5f9;
+      --slate-50: #f8fafc;
+      --white: #ffffff;
+      --danger: #ef4444;
+      --danger-light: #fef2f2;
+      --warning: #f59e0b;
+      --warning-light: #fffbeb;
+      --receipt-width: 80mm;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.08);
+      --shadow-lg: 0 10px 25px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    }
+
+    /* Dynamic Mode Coloring */
+    body.mode-wholesale {
+      --primary: var(--wholesale);
+      --primary-hover: var(--wholesale-hover);
+      --primary-light: var(--wholesale-light);
+      --primary-border: var(--wholesale-border);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      color: var(--ink);
+      background: var(--slate-100);
+      min-height: 100vh;
+      overflow-x: hidden;
+      transition: background-color 0.2s ease;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; border: none; background: transparent; transition: all 0.15s ease; }
+
+    /* Layout */
+    .app-layout {
+      display: grid;
+      grid-template-columns: 1fr 440px;
+      min-height: 100vh;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Left Panel - Catalog & Main Ops */
+    .catalog-panel {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      border-right: 1px solid var(--slate-200);
+      background: var(--slate-50);
+    }
+
+    /* Top Navigation Bar */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      background: var(--white);
+      border-bottom: 1px solid var(--slate-200);
+      gap: 16px;
+      z-index: 10;
+    }
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--primary), #0284c7);
+      color: var(--white);
+      display: grid;
+      place-items: center;
+      font-size: 22px;
+      box-shadow: 0 4px 10px rgba(15, 118, 110, 0.2);
+    }
+    .brand-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--ink);
+      letter-spacing: -0.4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .store-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+    }
+    .brand-subtitle {
+      font-size: 12px;
+      color: var(--slate-500);
+      margin-top: 1px;
+    }
+
+    /* Wholesale vs Retail Mode Switcher Pill */
+    .mode-switcher-container {
+      display: flex;
+      align-items: center;
+      background: var(--slate-100);
+      padding: 3px;
+      border-radius: 999px;
+      border: 1px solid var(--slate-200);
+    }
+    .mode-switch-btn {
+      padding: 6px 14px;
+      font-size: 12.5px;
+      font-weight: 800;
+      border-radius: 999px;
+      color: var(--slate-600);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .mode-switch-btn.active.retail {
+      background: #0f766e;
+      color: var(--white);
+      box-shadow: 0 2px 6px rgba(15, 118, 110, 0.3);
+    }
+    .mode-switch-btn.active.wholesale {
+      background: #1e3a8a;
+      color: var(--white);
+      box-shadow: 0 2px 6px rgba(30, 58, 138, 0.3);
+    }
+
+    /* Backend Connection Status Pill */
+    .backend-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--slate-200);
+      background: var(--slate-50);
+      color: var(--slate-500);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+    .backend-status-pill.online {
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+      color: #065f46;
+    }
+    .backend-status-pill.online .status-dot {
+      background: #10b981;
+      box-shadow: 0 0 6px #10b981;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--slate-700);
+      background: var(--white);
+      border: 1px solid var(--slate-200);
+    }
+    .btn-nav:hover {
+      background: var(--slate-100);
+      color: var(--primary);
+      border-color: var(--primary-border);
+    }
+    .btn-nav.primary {
+      background: var(--primary);
+      color: var(--white);
+      border-color: var(--primary);
+    }
+    .btn-nav.primary:hover {
+      background: var(--primary-hover);
+    }
+
+    /* Active User Pill */
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px 4px 5px;
+      background: var(--slate-100);
+      border-radius: 999px;
+      border: 1px solid var(--slate-200);
+    }
+    .user-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+    }
+    .user-details {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+    .user-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .user-role-badge {
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--primary);
+    }
+    .btn-switch-user {
+      padding: 3px 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--slate-500);
+      border-radius: 6px;
+    }
+    .btn-switch-user:hover {
+      color: var(--danger);
+      background: var(--danger-light);
+    }
+
+    /* Catalog Content Area */
+    .catalog-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 24px;
+      overflow-y: auto;
+      gap: 14px;
+    }
+
+    /* Mode Banner */
+    .mode-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+    .mode-banner.retail {
+      background: #f0fdfa;
+      border: 1px solid #ccfbf1;
+      color: #0f766e;
+    }
+    .mode-banner.wholesale {
+      background: #eff6ff;
+      border: 1px solid #dbeafe;
+      color: #1e3a8a;
+    }
+
+    /* Search & Barcode scanning bar */
+    .search-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .search-box {
+      flex: 1;
+      position: relative;
+    }
+    .search-box svg {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--slate-400);
+      width: 18px;
+      height: 18px;
+    }
+    .search-input {
+      width: 100%;
+      padding: 12px 16px 12px 42px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--slate-200);
+      background: var(--white);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--ink);
+      box-shadow: var(--shadow-sm);
+    }
+    .search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+    }
+    .scanner-badge {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 3px 8px;
+      background: var(--slate-100);
+      border: 1px solid var(--slate-200);
+      border-radius: 6px;
+      color: var(--slate-500);
+      pointer-events: none;
+    }
+
+    /* Categories Bar */
+    .categories-bar {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: thin;
+    }
+    .category-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 13px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 600;
+      white-space: nowrap;
+      background: var(--white);
+      border: 1px solid var(--slate-200);
+      color: var(--slate-700);
+    }
+    .category-chip:hover {
+      border-color: var(--primary-border);
+      color: var(--primary);
+      background: var(--primary-light);
+    }
+    .category-chip.active {
+      background: var(--primary);
+      color: var(--white);
+      border-color: var(--primary);
+    }
+
+    /* Products Grid */
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+      gap: 14px;
+      padding-bottom: 20px;
+    }
+    .product-card {
+      position: relative;
+      background: var(--white);
+      border: 1px solid var(--slate-200);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .product-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--primary-border);
+    }
+    .product-image-wrap {
+      height: 120px;
+      width: 100%;
+      background: var(--slate-100);
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .product-image-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+    .product-card:hover .product-image-wrap img {
+      transform: scale(1.05);
+    }
+    .fallback-emoji {
+      font-size: 42px;
+    }
+    .stock-tag {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.95);
+      color: var(--slate-700);
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+    .stock-tag.low {
+      background: var(--danger-light);
+      color: var(--danger);
+      border-color: #fca5a5;
+    }
+    .wholesale-badge-card {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-size: 9.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      background: #1e3a8a;
+      color: white;
+    }
+    .edit-btn-quick {
+      position: absolute;
+      bottom: 6px;
+      right: 6px;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.92);
+      display: grid;
+      place-items: center;
+      color: var(--slate-500);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      box-shadow: var(--shadow-sm);
+    }
+    .product-card:hover .edit-btn-quick {
+      opacity: 1;
+    }
+
+    .product-info {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      justify-content: space-between;
+    }
+    .product-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.25;
+      margin-bottom: 2px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .product-units-row {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      margin-bottom: 8px;
+    }
+    .product-retail-unit {
+      font-size: 11px;
+      color: var(--slate-500);
+    }
+    .product-wholesale-unit {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #1e40af;
+    }
+    .product-bottom {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-top: auto;
+    }
+    .price-display-block {
+      display: flex;
+      flex-direction: column;
+    }
+    .product-main-price {
+      font-size: 14.5px;
+      font-weight: 800;
+      color: var(--primary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .product-sub-price {
+      font-size: 10.5px;
+      color: var(--slate-500);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .btn-add-cart {
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 17px;
+      line-height: 1;
+    }
+    .btn-add-cart:hover {
+      background: var(--primary);
+      color: var(--white);
+    }
+
+    /* Right Panel - Cart & Checkout */
+    .cart-panel {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: var(--white);
+      box-shadow: -4px 0 20px rgba(0, 0, 0, 0.03);
+      position: relative;
+    }
+    .cart-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--slate-200);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--white);
+    }
+    .cart-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .cart-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .cart-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+    }
+    .cart-sale-type-pill {
+      font-size: 10.5px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    .cart-sale-type-pill.retail {
+      background: #ccfbf1;
+      color: #0f766e;
+    }
+    .cart-sale-type-pill.wholesale {
+      background: #dbeafe;
+      color: #1e3a8a;
+    }
+
+    /* Cart Items List */
+    .cart-items {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .cart-empty {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--slate-400);
+      text-align: center;
+      padding: 30px 16px;
+    }
+    .cart-empty svg {
+      width: 52px;
+      height: 52px;
+      margin-bottom: 10px;
+      color: var(--slate-300);
+    }
+
+    .cart-item-row {
+      display: grid;
+      grid-template-columns: 42px 1fr auto;
+      gap: 10px;
+      padding: 8px 10px;
+      background: var(--slate-50);
+      border: 1px solid var(--slate-200);
+      border-radius: var(--radius-sm);
+      align-items: center;
+    }
+    .cart-item-img {
+      width: 42px;
+      height: 42px;
+      border-radius: 7px;
+      background: var(--slate-200);
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+    }
+    .cart-item-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .cart-item-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .cart-item-name {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.2;
+    }
+    .cart-item-tier-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10.5px;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--slate-600);
+      background: var(--slate-200);
+      padding: 1px 6px;
+      border-radius: 4px;
+      width: fit-content;
+      margin-top: 1px;
+    }
+    .cart-item-tier-toggle:hover {
+      background: var(--primary-border);
+      color: var(--primary);
+    }
+    .cart-item-rate {
+      font-size: 11px;
+      color: var(--slate-500);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .cart-item-stepper {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 3px;
+    }
+    .stepper-btn {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      background: var(--white);
+      border: 1px solid var(--slate-200);
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--slate-700);
+    }
+    .stepper-qty {
+      font-size: 12px;
+      font-weight: 700;
+      min-width: 22px;
+      text-align: center;
+    }
+    .cart-item-end {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 5px;
+    }
+    .cart-item-total {
+      font-size: 13px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--ink);
+    }
+    .btn-remove-item {
+      color: var(--slate-400);
+      padding: 2px;
+    }
+    .btn-remove-item:hover {
+      color: var(--danger);
+    }
+
+    /* Cart Checkout Summary */
+    .cart-checkout-section {
+      padding: 14px 18px;
+      border-top: 1px solid var(--slate-200);
+      background: var(--slate-50);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .summary-lines {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 12.5px;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--slate-500);
+    }
+    .summary-row.total-row {
+      border-top: 1px dashed var(--slate-300);
+      padding-top: 8px;
+      margin-top: 2px;
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .total-amount {
+      color: var(--primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 19px;
+    }
+
+    /* Payment Methods */
+    .payment-selector {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+    }
+    .pay-btn {
+      padding: 7px 3px;
+      background: var(--white);
+      border: 1px solid var(--slate-200);
+      border-radius: var(--radius-sm);
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--slate-700);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+    .pay-btn.active {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: var(--white);
+    }
+
+    /* Cash / Credit Drawers */
+    .tender-drawer {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+      background: var(--white);
+      border: 1px solid var(--slate-200);
+      border-radius: var(--radius-sm);
+    }
+    .tender-drawer.show { display: flex; }
+    .quick-cash-row { display: flex; gap: 4px; }
+    .btn-quick-cash {
+      flex: 1;
+      padding: 4px;
+      font-size: 10.5px;
+      font-weight: 700;
+      background: var(--slate-100);
+      border: 1px solid var(--slate-200);
+      border-radius: 4px;
+      color: var(--slate-700);
+    }
+    .cash-calc-row { display: flex; gap: 6px; align-items: center; }
+    .cash-input {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid var(--slate-300);
+      border-radius: 5px;
+      font-size: 12.5px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .change-badge {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--accent);
+      padding: 5px 8px;
+      background: #ecfdf5;
+      border-radius: 5px;
+      border: 1px solid #a7f3d0;
+      white-space: nowrap;
+    }
+
+    .credit-drawer {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      padding: 8px;
+      background: var(--warning-light);
+      border: 1px solid #fde68a;
+      border-radius: var(--radius-sm);
+    }
+    .credit-drawer.show { display: flex; }
+    .credit-input {
+      padding: 6px 8px;
+      border: 1px solid #fbbf24;
+      border-radius: 5px;
+      font-size: 11.5px;
+      background: var(--white);
+    }
+
+    /* Checkout Button */
+    .btn-checkout {
+      width: 100%;
+      padding: 13px;
+      border-radius: var(--radius-md);
+      background: var(--primary);
+      color: var(--white);
+      font-size: 14.5px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(15, 118, 110, 0.3);
+    }
+    .btn-checkout:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* Modals */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      place-items: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: grid; }
+    .modal-window {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      width: min(740px, 100%);
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--slate-200);
+    }
+    .modal-heading {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .btn-close-modal {
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
+      background: var(--slate-100);
+      color: var(--slate-500);
+      display: grid;
+      place-items: center;
+      font-size: 17px;
+      font-weight: 700;
+    }
+    .modal-content { padding: 22px; }
+
+    /* Form UI Elements */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .form-group.full { grid-column: span 2; }
+    .form-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--slate-700);
+    }
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      padding: 9px 11px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--slate-300);
+      background: var(--white);
+      font-size: 13px;
+      color: var(--ink);
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+    }
+    .form-hint { font-size: 11px; color: var(--slate-400); }
+
+    .calc-preview-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #1e40af;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Custom Image Dropzone */
+    .image-picker-zone {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      padding: 12px;
+      border: 2px dashed var(--slate-300);
+      border-radius: var(--radius-md);
+      background: var(--slate-50);
+    }
+    .image-preview-box {
+      width: 76px;
+      height: 76px;
+      border-radius: var(--radius-sm);
+      background: var(--slate-200);
+      border: 1px solid var(--slate-300);
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+    .image-preview-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .image-picker-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+    .file-input-wrapper { position: relative; display: inline-block; }
+    .file-input-wrapper input[type="file"] {
+      position: absolute;
+      left: 0;
+      top: 0;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+    .btn-upload-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 11px;
+      border-radius: 6px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* Modal Action Buttons */
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid var(--slate-200);
+    }
+    .btn-modal-cancel {
+      padding: 9px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--slate-600);
+      background: var(--slate-100);
+    }
+    .btn-modal-save {
+      padding: 9px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--white);
+      background: var(--primary);
+    }
+
+    /* Tables */
+    .custom-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    .custom-table th {
+      background: var(--slate-100);
+      padding: 9px 10px;
+      text-align: left;
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--slate-500);
+      border-bottom: 1px solid var(--slate-200);
+    }
+    .custom-table td {
+      padding: 10px;
+      border-bottom: 1px solid var(--slate-200);
+      color: var(--slate-700);
+      vertical-align: middle;
+    }
+
+    /* Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .metric-card {
+      padding: 12px;
+      background: var(--slate-50);
+      border: 1px solid var(--slate-200);
+      border-radius: var(--radius-md);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .metric-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--slate-500);
+    }
+    .metric-val {
+      font-size: 18px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--ink);
+    }
+
+    /* Toast */
+    .toast-box {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #0f172a;
+      color: var(--white);
+      padding: 11px 18px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 600;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      z-index: 200;
+      opacity: 0;
+      transition: all 0.25s ease;
+      pointer-events: none;
+    }
+    .toast-box.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* Login Overlay */
+    .login-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at top right, #ccfbf1, #f1f5f9 60%, #e2e8f0);
+      z-index: 150;
+      display: none;
+      place-items: center;
+      padding: 20px;
+    }
+    .login-card {
+      background: var(--white);
+      width: min(400px, 100%);
+      padding: 32px 28px;
+      border-radius: 20px;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--slate-200);
+      text-align: center;
+    }
+    .login-logo {
+      width: 50px;
+      height: 50px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--primary), #0284c7);
+      color: var(--white);
+      font-size: 24px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 14px;
+    }
+    .pin-display {
+      letter-spacing: 12px;
+      font-size: 22px;
+      font-weight: 800;
+      padding: 10px;
+      background: var(--slate-100);
+      border-radius: var(--radius-sm);
+      margin-bottom: 14px;
+      border: 1px solid var(--slate-200);
+    }
+    .pin-keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .pin-btn {
+      padding: 12px;
+      font-size: 17px;
+      font-weight: 700;
+      background: var(--slate-50);
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+    }
+    .pin-btn:hover { background: var(--slate-200); }
+
+    /* Thermal Receipt & Wholesale Invoice */
+    .receipt-container {
+      width: var(--receipt-width);
+      margin: 0 auto;
+      background: var(--white);
+      padding: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #000;
+      border: 1px dashed #cbd5e1;
+      line-height: 1.35;
+    }
+    .receipt-header { text-align: center; margin-bottom: 10px; }
+    .receipt-store-name { font-size: 15px; font-weight: 800; margin-bottom: 2px; }
+    .receipt-divider { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
+    .receipt-row { display: flex; justify-content: space-between; gap: 8px; }
+    .receipt-table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+    .receipt-table th { border-bottom: 1px dashed #000; text-align: left; padding: 3px 0; }
+    .receipt-table td { padding: 3px 0; vertical-align: top; }
+    .receipt-total-row { font-size: 13.5px; font-weight: 800; }
+    .receipt-footer { text-align: center; margin-top: 10px; font-size: 10.5px; }
+
+    @media print {
+      body * { visibility: hidden !important; }
+      #receiptModal, #receiptModal * { visibility: visible !important; }
+      #receiptModal {
+        position: absolute !important;
+        inset: 0 !important;
+        display: block !important;
+        background: #fff !important;
+        padding: 0 !important;
+      }
+      #receiptModal .modal-window { box-shadow: none !important; padding: 0 !important; border: none !important; }
+      #receiptModal .modal-top, #receiptModal .modal-actions { display: none !important; }
+      .receipt-container { border: none !important; padding: 0 !important; width: 100% !important; }
+    }
+
+    .topbar-actions { flex-wrap:wrap; }
+    #returnsDialog { width:min(1080px,95vw);max-height:92vh;margin:auto;padding:0;border:1px solid #cbd5e1;border-radius:16px;color:#0f172a;background:#f8fafc;box-shadow:0 24px 80px #0004; }
+    #returnsDialog::backdrop { background:#0f172ab3; }
+    .returns-heading { display:flex;justify-content:space-between;align-items:center;padding:20px 24px;background:white;border-bottom:1px solid #e2e8f0; }
+    .returns-content { padding:20px 24px;overflow-y:auto; }
+    #returnsFields { border:0;min-width:0; }
+    .return-section { background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:16px; }
+    .return-section h3 { font-size:16px;margin-bottom:12px; }
+    .return-controls { display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:12px; }
+    .return-controls label { flex:1;min-width:150px;font-size:12px;font-weight:600; }
+    .return-item-row { display:grid;grid-template-columns:2fr 1fr 1.5fr;gap:14px;align-items:center;padding:12px 0;border-top:1px solid #e2e8f0; }
+    .return-item-row label { font-size:12px; }
+    .return-muted { font-size:12px;color:#64748b;margin-top:5px; }
+    .return-replacement-row,.return-amount-row { display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #e2e8f0; }
+    #returnsMessage { white-space:pre-wrap;font-size:13px;line-height:1.6;padding:12px;background:#f0fdfa;border-radius:8px;margin:12px 0; }
+    .returns-actions { display:flex;gap:10px;flex-wrap:wrap; }
+    #returnsDialog button:disabled { opacity:.5;cursor:not-allowed; }
+    @media(max-width:650px) { .return-item-row { grid-template-columns:1fr; } .returns-content { padding:14px; } .returns-heading { padding:14px; } }
+
+    #stockDialog { width:min(1050px,95vw);max-height:92vh;margin:auto;padding:0;border:1px solid #cbd5e1;border-radius:16px;color:#0f172a;background:#f8fafc;box-shadow:0 24px 80px #0004; }
+    #stockDialog::backdrop { background:#0f172ab3; }
+    #stockFields { border:0;min-width:0; }
+    #stockMessage { padding:12px;white-space:pre-wrap;line-height:1.6;background:#f0fdfa;border-radius:8px;margin:12px 0; }
+    #stockDialog button:disabled { opacity:.5;cursor:not-allowed; }
+    .stock-history-wrap { overflow-x:auto; }
+    #stockHistory { width:100%;border-collapse:collapse;font-size:12px; }
+    #stockHistory th,#stockHistory td { padding:10px;text-align:left;border-bottom:1px solid #e2e8f0;vertical-align:top; }
+    #stockHistory th { background:#f1f5f9;white-space:nowrap; }
+  
+/* Phone and tablet layout; desktop billing layout remains available. */
+.mobile-menu-button,.mobile-tabs { display:none; }
+.catalog-panel,.cart-panel,.brand-section,.search-box { min-width:0; }
+@media screen and (max-width:1200px) and (min-width:761px) {
+ .app-layout { grid-template-columns:minmax(0,1fr) 360px; }
+ .topbar { flex-wrap:wrap;padding:12px;gap:10px; }
+ .topbar-actions { width:100%;gap:6px; }
+ .catalog-body { padding:14px; }
+ .products-grid { grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); }
+}
+@media screen and (max-width:760px) {
+ html,body { height:100%;overscroll-behavior-y:none; }
+ .app-layout { display:block;height:100vh;height:100dvh;min-height:0;padding-bottom:calc(68px + env(safe-area-inset-bottom)); }
+ .catalog-panel { height:100%;border:0; }
+ .topbar { padding:10px 12px;gap:10px;flex-wrap:wrap;flex-shrink:0; }
+ .brand-section { flex:1;gap:8px; }
+ .brand-section>div:last-child { min-width:0; }
+ .brand-icon { width:36px;height:36px;font-size:20px;flex-shrink:0; }
+ .brand-title { font-size:15px;flex-wrap:wrap;gap:4px;overflow-wrap:anywhere; }
+ .brand-subtitle { font-size:10px; }
+ .store-badge { font-size:9px; }
+ .mobile-menu-button { display:block;min-height:44px;padding:8px 12px;border:1px solid var(--slate-300);border-radius:10px;font-weight:700;background:white; }
+ .mode-switcher-container { order:3;width:100%; }
+ .mode-switch-btn { flex:1;justify-content:center;min-height:44px;padding:8px 4px;font-size:12px; }
+ .topbar-actions { display:none;width:100%;order:4;gap:8px;max-height:38dvh;overflow:auto; }
+ body.mobile-menu-open .topbar-actions { display:flex; }
+ .topbar-actions .btn-nav { flex:1 1 40%;justify-content:center; }
+ .user-pill { width:100%;justify-content:space-between; }
+ .catalog-body { min-height:0;padding:12px;gap:12px;overscroll-behavior:contain; }
+ .mode-banner { flex-wrap:wrap;gap:8px;font-size:11px;line-height:1.6;padding:10px; }
+ .search-row,.search-box { width:100%; }
+ .scanner-badge { display:none; }
+ .search-input { min-width:0;width:100%;font-size:16px;padding-right:8px; }
+ .categories-bar { flex-shrink:0;max-width:100%;overflow-x:auto;flex-wrap:nowrap; }
+ .categories-bar>* { flex-shrink:0;min-height:44px; }
+ .products-grid { grid-template-columns:repeat(2,minmax(0,1fr));gap:10px; }
+ .product-image-wrap { height:105px; }
+ .product-info { padding:10px; }
+ .product-title { font-size:13px;overflow-wrap:anywhere; }
+ .product-main-price { font-size:16px;overflow-wrap:anywhere; }
+ .product-bottom { gap:4px;flex-wrap:wrap; }
+ .product-units-row { flex-wrap:wrap; }
+ .edit-btn-quick { opacity:1; }
+ .btn-add-cart { min-width:44px;min-height:44px; }
+ .cart-panel { display:none;height:100%;overflow-y:auto;overscroll-behavior:contain; }
+ body.mobile-bill-open .catalog-panel { display:none; }
+ body.mobile-bill-open .cart-panel { display:flex; }
+ .cart-header { flex-shrink:0;padding:12px; }
+ .cart-title-row { flex-wrap:wrap;gap:8px; }
+ .cart-items { flex:none;overflow:visible;min-height:120px;padding:12px; }
+ .cart-checkout-section { flex-shrink:0;margin-top:auto;padding:14px; }
+ .cart-item-row { grid-template-columns:36px minmax(0,1fr) auto;gap:8px; }
+ .cart-item-name { overflow-wrap:anywhere; }
+ .stepper-btn,.btn-remove-item { min-width:44px;min-height:44px; }
+ .cart-item-stepper { flex-wrap:wrap; }
+ .cash-calc-row { flex-wrap:wrap; }
+ .cash-input { width:100%;min-width:0; }
+ .quick-cash-row { flex-wrap:wrap; }
+ .quick-cash-row>* { flex:1 1 40%;min-height:44px; }
+ .payment-selector { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .pay-btn,.btn-checkout,.btn-nav,.btn-close-modal,.btn-switch-user { min-height:44px; }
+ input,select,textarea,.form-input,.form-select,.form-textarea,.cash-input,.credit-input { font-size:16px;max-width:100%; }
+ .mobile-tabs { display:flex;position:fixed;bottom:0;left:0;right:0;z-index:30;gap:8px;background:white;border-top:1px solid var(--slate-200);padding:8px 12px calc(8px + env(safe-area-inset-bottom)); }
+ .mobile-tabs button { flex:1;min-width:0;min-height:50px;border-radius:12px;font-weight:800;color:var(--slate-700);background:var(--slate-100);font-size:13px; }
+ .mobile-tabs button[aria-pressed="true"] { background:var(--primary);color:white; }
+ #mobileBillSummary { display:block;font-size:10px;margin-top:3px;overflow-wrap:anywhere; }
+ .modal-overlay { padding:10px; }
+ .modal-window { max-height:calc(100vh - 20px);max-height:calc(100dvh - 20px);width:100%!important;min-width:0; }
+ .modal-content { padding:14px;min-width:0; }
+ .modal-top { padding:12px 14px;gap:8px; }
+ .modal-heading { font-size:15px; }
+ .modal-actions { flex-wrap:wrap;padding:12px 14px;gap:8px; }
+ .modal-actions button { flex:1 1 auto;min-height:44px; }
+ .form-grid { grid-template-columns:minmax(0,1fr); }
+ .form-group.full { grid-column:auto; }
+ .metrics-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .custom-table { min-width:560px; }
+ .modal-content { overflow-x:auto; }
+ .login-overlay { overflow-y:auto;padding:16px; }
+ .login-card { padding:24px 18px;margin:auto; }
+ #returnsDialog,#stockDialog { width:calc(100% - 16px);max-height:calc(100dvh - 16px); }
+ .returns-heading { gap:8px; }
+ .returns-heading h2 { font-size:17px; }
+ .return-controls { align-items:stretch; }
+ .return-controls label { flex-basis:100%;min-width:0; }
+ .return-section { padding:12px; }
+ .returns-actions button { flex:1 1 100%;min-height:44px; }
+ .return-item-row { grid-template-columns:minmax(0,1fr); }
+ .toast-box { max-width:calc(100vw - 24px);bottom:calc(86px + env(safe-area-inset-bottom));white-space:normal; }
+}
+@media screen and (max-width:360px) {
+ .product-info { padding:8px; }
+ .product-main-price { font-size:14px; }
+ .cart-item-row { grid-template-columns:minmax(0,1fr) auto; }
+ .cart-item-img { display:none; }
+}
+@media print { .mobile-tabs,.mobile-menu-button { display:none!important; } }
+
+</style>
+</head>
+<body class="mode-retail">
+
+  <div class="app-layout">
+    <!-- Left Catalog Panel -->
+    <main class="catalog-panel">
+      <!-- Top Navigation -->
+      <header class="topbar">
+        <div class="brand-section" id="headerBrandSection">
+          <div class="brand-icon" id="headerStoreIcon">🛒</div>
+          <div>
+            <div class="brand-title">
+              <span id="headerStoreName">PakBazaar Supermarket</span>
+              <span class="store-badge" id="headerBranchBadge">POS-01</span>
+            </div>
+            <div class="brand-subtitle" id="headerTagline">Wholesale & Retail Management</div>
+          </div>
+        </div>
+
+        <!-- Mode Switcher: Retail vs Wholesale -->
+        <div class="mode-switcher-container">
+          <button class="mode-switch-btn active retail" id="btnModeRetail" onclick="setSaleMode('Retail')">
+            🛍️ Retail (پرچون)
+          </button>
+          <button class="mode-switch-btn" id="btnModeWholesale" onclick="setSaleMode('Wholesale')">
+            📦 Wholesale (تھوک)
+          </button>
+        </div>
+
+        <button type="button" class="mobile-menu-button" id="mobileMenuButton" aria-controls="mobileMenuActions" aria-expanded="false">Menu</button>
+<div class="topbar-actions" id="mobileMenuActions">
+          <div class="backend-status-pill online" id="backendStatusPill" title="Status of Database">
+            <span class="status-dot"></span>
+            <span id="backendStatusText">Database</span>
+          </div>
+
+          <button class="btn-nav primary" id="btnOpenAddProduct">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+            + Product
+          </button>
+          <button class="btn-nav" id="btnOpenSales">Sales</button>
+          <button class="btn-nav" id="btnOpenReturns" style="display:none">Return / Exchange</button>
+          <button class="btn-nav" id="btnOpenStock" style="display:none">Stock</button>
+          <button class="btn-nav" id="btnOpenCredit">Khata / Udhaar</button>
+          <button class="btn-nav" id="btnOpenStaff">Staff</button>
+          <button class="btn-nav" id="btnOpenSettings">Settings</button>
+
+          <!-- Current User Pill -->
+          <div class="user-pill">
+            <div class="user-avatar" id="activeUserAvatar">A</div>
+            <div class="user-details">
+              <span class="user-name" id="activeUserName">Abdul</span>
+              <span class="user-role-badge admin" id="activeUserRole">Admin</span>
+            </div>
+            <button class="btn-switch-user" id="btnSwitchUser" title="Lock Register / Switch Shift">Lock</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Catalog Main Area -->
+      <div class="catalog-body">
+        <!-- Active Mode Banner -->
+        <div class="mode-banner retail" id="modeBanner">
+          <div>
+            <b>🛍️ Active Billing Mode: RETAIL (پرچون)</b> — Selling individual consumer packs at standard retail prices.
+          </div>
+          <button class="btn-nav" style="padding: 3px 8px; font-size: 11px;" onclick="setSaleMode(activeSaleMode === 'Retail' ? 'Wholesale' : 'Retail')">
+            Switch to Wholesale ➔
+          </button>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-row">
+          <div class="search-box">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input class="search-input" id="searchInput" placeholder="Search products by item name, category or barcode (Press Enter to scan)..." autofocus />
+            <span class="scanner-badge">Barcode Scanner [Enter]</span>
+          </div>
+        </div>
+
+        <!-- Categories Bar -->
+        <div class="categories-bar" id="categoriesBar"></div>
+
+        <!-- Product Cards Grid -->
+        <div class="products-grid" id="productsGrid"></div>
+      </div>
+    </main>
+
+    <!-- Right Side Cart & Billing Panel -->
+    <aside class="cart-panel">
+      <!-- Cart Header -->
+      <div class="cart-header">
+        <div class="cart-title-row">
+          <h2 class="cart-title">Order Bill</h2>
+          <span class="cart-badge" id="cartBadgeCount">0 items</span>
+          <span class="cart-sale-type-pill retail" id="cartSaleTypePill">Retail</span>
+        </div>
+        <div style="display: flex; gap: 4px;">
+          <button class="btn-nav" style="padding: 4px 8px; font-size: 11px; color: var(--danger);" id="btnClearCart">Clear</button>
+        </div>
+      </div>
+
+      <!-- Cart Items List -->
+      <div class="cart-items" id="cartItemsList">
+        <div class="cart-empty">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+          <p style="font-weight: 700; color: var(--ink); margin-bottom: 2px;">Cart is empty</p>
+          <p style="font-size: 12px;">Click a product or scan barcode to begin.</p>
+        </div>
+      </div>
+
+      <!-- Cart Checkout Drawer & Totals -->
+      <div class="cart-checkout-section">
+        <div class="summary-lines">
+          <div class="summary-row">
+            <span>Subtotal</span>
+            <span id="summarySubtotal">Rs. 0.00</span>
+          </div>
+          <div class="summary-row">
+            <span id="taxLabel">Tax (0%)</span>
+            <span id="summaryTax">Rs. 0.00</span>
+          </div>
+          <div class="summary-row total-row">
+            <span>Total Payable</span>
+            <span class="total-amount" id="summaryTotal">Rs. 0.00</span>
+          </div>
+        </div>
+
+        <!-- Payment Method Selection -->
+        <div>
+          <div class="payment-selector">
+            <button class="pay-btn active" data-method="Cash"><span>💵</span> Cash</button>
+            <button class="pay-btn" data-method="Card"><span>💳</span> Card</button>
+            <button class="pay-btn" data-method="Digital"><span>📱</span> Raast</button>
+            <button class="pay-btn" data-method="Credit"><span>🧾</span> Khata</button>
+          </div>
+        </div>
+
+        <!-- Cash Tendered Drawer -->
+        <div class="tender-drawer show" id="cashTenderDrawer">
+          <div class="quick-cash-row">
+            <button class="btn-quick-cash" onclick="quickCash('exact')">Exact</button>
+            <button class="btn-quick-cash" onclick="quickCash(500)">+Rs. 500</button>
+            <button class="btn-quick-cash" onclick="quickCash(1000)">+Rs. 1000</button>
+            <button class="btn-quick-cash" onclick="quickCash(5000)">+Rs. 5000</button>
+          </div>
+          <div class="cash-calc-row">
+            <input class="cash-input" id="cashTenderedInput" type="number" step="10" placeholder="Cash Received (Rs.)" />
+            <div class="change-badge" id="changeReturnBadge">Change: Rs. 0.00</div>
+          </div>
+        </div>
+
+        <!-- Khata Customer Drawer -->
+        <div class="credit-drawer" id="creditDrawer">
+          <div style="font-size: 11px; font-weight: 700; color: #92400e;">Customer Khata (Udhaar Details)</div>
+          <select class="form-select" id="creditCustomerId" aria-label="Credit customer"><option value="">Select existing customer</option></select>
+              <input class="credit-input" id="creditCustName" hidden placeholder="Customer / Shop Name *" />
+          <input class="credit-input" id="creditCustPhone" hidden placeholder="Phone Number (e.g. 03001234567)" />
+        </div>
+
+        <!-- Checkout Action Button -->
+        <button class="btn-checkout" id="btnCheckout" disabled>
+          <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+          <span id="checkoutBtnLabel">Complete Sale · Rs. 0.00</span>
+        </button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Toast Box -->
+  <div class="toast-box" id="toastBox">Notification message</div>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- 1. Store Settings Modal -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal-window">
+      <div class="modal-top">
+        <h3 class="modal-heading">Store & Branding Settings</h3>
+        <button class="btn-close-modal" onclick="closeModal('settingsModal')">×</button>
+      </div>
+      <div class="modal-content">
+        <form id="storeSettingsForm">
+          <div class="form-grid">
+            <div class="form-group full">
+              <label class="form-label">Store Name (Shown on POS & Receipts) *</label>
+              <input class="form-input" id="setStoreName" required placeholder="e.g. Al-Madina Wholesale & Retail" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Store Tagline</label>
+              <input class="form-input" id="setStoreTagline" placeholder="e.g. Wholesale & Retail Supermarket" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Branch / Register</label>
+              <input class="form-input" id="setStoreBranch" placeholder="e.g. Main Market · Register 01" />
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Store Address</label>
+              <input class="form-input" id="setStoreAddress" placeholder="e.g. Main Commercial Market, Karachi" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone / WhatsApp</label>
+              <input class="form-input" id="setStorePhone" placeholder="e.g. +92 300 1234567" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">NTN / STRN</label>
+              <input class="form-input" id="setStoreTaxId" placeholder="e.g. NTN-9876543-2" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Currency Symbol</label>
+              <select class="form-select" id="setStoreCurrency">
+                <option value="Rs.">Rs. (Pakistani Rupee)</option>
+                <option value="PKR">PKR (Pakistani Rupee)</option>
+                <option value="₨">₨ (Urdu Rupee Sign)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Sales Tax Rate (%)</label>
+              <input class="form-input" id="setStoreTaxRate" type="number" min="0" max="30" step="0.5" value="0" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Receipt Paper Width</label>
+              <select class="form-select" id="setReceiptWidth">
+                <option value="80mm">80 mm (Standard POS Thermal)</option>
+                <option value="58mm">58 mm (Compact Mini Thermal)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Store Icon</label>
+              <input class="form-input" id="setStoreIcon" placeholder="🛒" maxlength="4" />
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Receipt / Invoice Footer Note</label>
+              <textarea class="form-textarea" id="setReceiptFooter" rows="2" placeholder="e.g. JazakAllah Khair for shopping with us!"></textarea>
+            </div>
+          </div>
+          <div class="modal-actions" style="justify-content: space-between;">
+            <button type="button" class="btn-modal-cancel" style="color: var(--danger);" onclick="resetDemoData()">Reset All Demo Data</button>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn-modal-cancel" onclick="closeModal('settingsModal')">Cancel</button>
+              <button type="submit" class="btn-modal-save">Save Settings</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Staff Management Modal -->
+  <div class="modal-overlay" id="staffModal">
+    <div class="modal-window">
+      <div class="modal-top">
+        <h3 class="modal-heading">Staff Management</h3>
+        <button class="btn-close-modal" onclick="closeModal('staffModal')">×</button>
+      </div>
+      <div class="modal-content">
+        <div style="background: var(--slate-50); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--slate-200); margin-bottom: 16px;">
+          <h4 style="font-size: 13.5px; font-weight: 700; margin-bottom: 10px;">Add New Cashier / Admin</h4>
+          <form id="addStaffForm" class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Full Name *</label>
+              <input class="form-input" id="staffName" required placeholder="e.g. Bilawal Khan" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Role *</label>
+              <select class="form-select" id="staffRole">
+                <option value="Cashier">Cashier (Billing & Receipts)</option>
+                <option value="Admin">Admin (Full Access & Settings)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">4-Digit PIN *</label>
+              <input class="form-input" id="staffPin" required type="password" inputmode="numeric" maxlength="6" placeholder="e.g. 2468" />
+            </div>
+            <div class="form-group" style="justify-content: flex-end;">
+              <button type="submit" class="btn-modal-save" style="margin-top: auto;">+ Add Staff</button>
+            </div>
+          </form>
+        </div>
+
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>Staff Name</th>
+              <th>Role</th>
+              <th>PIN Code</th>
+              <th>Status</th>
+              <th style="text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="staffTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Add / Edit Product Modal (Dual Retail & Wholesale Pricing) -->
+  <div class="modal-overlay" id="productModal">
+    <div class="modal-window">
+      <div class="modal-top">
+        <h3 class="modal-heading" id="productModalTitle">Add Product (Retail & Wholesale)</h3>
+        <button class="btn-close-modal" onclick="closeModal('productModal')">×</button>
+      </div>
+      <div class="modal-content">
+        <form id="productForm">
+          <input type="hidden" id="prodEditId" />
+          <div class="form-grid">
+            <div class="form-group full">
+              <label class="form-label">Product Name *</label>
+              <input class="form-input" id="prodName" required placeholder="e.g. Olper's Whole Milk 1 Litre" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Barcode / SKU *</label>
+              <input class="form-input" id="prodBarcode" required inputmode="numeric" placeholder="e.g. 89640001002" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category *</label>
+              <select class="form-select" id="prodCategory">
+                <option value="Produce">Produce (Fruits & Veg)</option>
+                <option value="Dairy">Dairy & Milk</option>
+                <option value="Bakery">Bakery & Breads</option>
+                <option value="Pantry">Pantry & Spices</option>
+                <option value="Beverages">Beverages & Tea</option>
+                <option value="Snacks">Snacks & Confectionery</option>
+                <option value="Household">Household & Cleaning</option>
+                <option value="Personal Care">Personal Care</option>
+              </select>
+            </div>
+
+            <!-- Retail Pricing Section -->
+            <div class="form-group">
+              <label class="form-label">Retail Single Unit *</label>
+              <input class="form-input" id="prodUnit" required placeholder="e.g. 1 Litre Pack or 1 Piece or 1 kg" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Retail Price (Single Unit) *</label>
+              <input class="form-input" id="prodRetailPrice" required type="number" min="0" step="0.5" placeholder="e.g. 290" />
+            </div>
+
+            <!-- Wholesale Pricing Section -->
+            <div class="form-group">
+              <label class="form-label">Wholesale Bulk Unit Name *</label>
+              <input class="form-input" id="prodWholesaleUnit" required placeholder="e.g. Carton (12 packs) or Bori (50 kg)" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Pieces per Wholesale Pack *</label>
+              <input class="form-input" id="prodWholesalePackSize" required type="number" min="1" value="12" placeholder="e.g. 12" />
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Wholesale Unit Price (Per Single Piece in Bulk) *</label>
+              <input class="form-input" id="prodWholesalePrice" required type="number" min="0" step="0.5" placeholder="e.g. 265" />
+            </div>
+
+            <!-- Live Calculation Preview -->
+            <div class="form-group full">
+              <div class="calc-preview-box">
+                <span>📦 <b>Wholesale Pack Calculation:</b></span>
+                <span id="wholesaleCalcPreview">1 Pack = 12 pcs × Rs. 265 = <b>Rs. 3,180.00</b></span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Total Stock (In Base Single Units) *</label>
+              <input class="form-input" id="prodStock" type="number" min="0" value="120" />
+              <span class="form-hint" id="stockConversionHint">120 pcs = 10 Cartons</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Fallback Icon / Emoji</label>
+              <input class="form-input" id="prodEmoji" placeholder="e.g. 🥛" maxlength="4" />
+            </div>
+
+            <!-- Custom Image Upload Section -->
+            <div class="form-group full">
+              <label class="form-label">Product Image (Upload File or URL)</label>
+              <div class="image-picker-zone">
+                <div class="image-preview-box" id="imagePreviewContainer">
+                  <span style="font-size: 26px;" id="imagePreviewFallback">🖼️</span>
+                  <img id="imagePreviewImg" style="display: none;" alt="Preview" />
+                </div>
+                <div class="image-picker-controls">
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    <div class="file-input-wrapper">
+                      <button type="button" class="btn-upload-label">
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        Upload Local File
+                      </button>
+                      <input type="file" id="prodImageFile" accept="image/*" />
+                    </div>
+                    <button type="button" class="btn-nav" id="btnClearImage" hidden style="padding: 5px 9px; font-size: 11px;">Remove</button>
+                  </div>
+                  <input class="form-input" id="prodImageUrl" readonly placeholder="Or paste image web URL (https://...)" style="font-size: 12px;" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions" style="justify-content: space-between;">
+            <button type="button" class="btn-modal-cancel" id="btnDeleteProduct" style="display: none; color: var(--danger); background: var(--danger-light);" onclick="deleteCurrentProduct()">Delete Product</button>
+            <div style="display: flex; gap: 8px; margin-left: auto;">
+              <button type="button" class="btn-modal-cancel" onclick="closeModal('productModal')">Cancel</button>
+              <button type="submit" class="btn-modal-save" id="btnSaveProduct">Save Product</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Sales History Modal -->
+  <div class="modal-overlay" id="salesModal">
+    <div class="modal-window" style="width: min(880px, 100%);">
+      <div class="modal-top">
+        <h3 class="modal-heading">Sales History & Revenue Report</h3>
+        <button class="btn-close-modal" onclick="closeModal('salesModal')">×</button>
+      </div>
+      <div class="modal-content">
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <span class="metric-label">Total Revenue</span>
+            <span class="metric-val" style="color: var(--accent);" id="metricTotalRevenue">Rs. 0</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Retail Revenue</span>
+            <span class="metric-val" id="metricRetailRevenue">Rs. 0</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Wholesale Revenue</span>
+            <span class="metric-val" style="color: #1e40af;" id="metricWholesaleRevenue">Rs. 0</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Khata Balance</span>
+            <span class="metric-val" style="color: var(--warning);" id="metricCreditSales">Rs. 0</span>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h4 style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--slate-500);">Completed Transactions</h4>
+          <button class="btn-nav" onclick="exportSalesCSV()">Export to CSV</button>
+        </div>
+
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>Receipt #</th>
+              <th>Type</th>
+              <th>Date & Time</th>
+              <th>Cashier</th>
+              <th>Payment</th>
+              <th>Total Amount</th>
+              <th style="text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="salesTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Customer Khata / Udhaar Modal -->
+  <div class="modal-overlay" id="creditModal">
+    <div class="modal-window">
+      <div class="modal-top">
+        <h3 class="modal-heading">Customer Khata Ledger (Credit Book)</h3>
+        <button class="btn-close-modal" onclick="closeModal('creditModal')">×</button>
+      </div>
+      <div class="modal-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--warning-light); border: 1px solid #fde68a; border-radius: var(--radius-md); margin-bottom: 16px;">
+          <div>
+            <div style="font-size: 11.5px; font-weight: 700; color: #92400e;">Total Outstanding Khata Balance</div>
+            <div style="font-size: 20px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: #b45309;" id="creditTotalBalance">Rs. 0.00</div>
+          </div>
+          <button class="btn-nav primary" onclick="promptNewCreditCustomer()">+ Add Customer Account</button>
+        </div>
+
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>Customer / Shop</th>
+              <th>Type</th>
+              <th>Phone</th>
+              <th>Balance Due</th>
+              <th style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="creditTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Thermal Receipt & Wholesale Invoice Modal -->
+  <div class="modal-overlay" id="receiptModal">
+    <div class="modal-window" style="width: min(450px, 100%);">
+      <div class="modal-top">
+        <h3 class="modal-heading" id="receiptModalHeading">Receipt Preview</h3>
+        <button class="btn-close-modal" onclick="closeModal('receiptModal')">×</button>
+      </div>
+      <div class="modal-content" style="background: var(--slate-100); padding: 14px;">
+        <div id="receiptContainer" class="receipt-container"></div>
+      </div>
+      <div class="modal-actions" style="padding: 12px 18px;">
+        <button class="btn-modal-cancel" onclick="closeModal('receiptModal')">Close</button>
+        <button class="btn-modal-save" onclick="window.print()">Print Receipt</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="login-overlay" id="loginOverlay" style="display:grid">
+    <div class="login-card">
+      <div class="login-logo" id="loginLogoIcon">🛒</div>
+      <h2 id="loginStoreTitle">PakBazaar POS</h2>
+      <p style="margin:12px 0;color:#64748b">Sign in with your staff email and password.</p>
+      <form id="backendLoginForm" style="text-align:left">
+        <label class="form-label" for="loginEmail">Email</label>
+        <input class="form-input" id="loginEmail" type="email" autocomplete="username" required>
+        <label class="form-label" for="loginPassword" style="margin-top:12px">Password</label>
+        <input class="form-input" id="loginPassword" type="password" autocomplete="current-password" required>
+        <p id="loginError" role="alert" style="color:#b91c1c;margin:12px 0"></p>
+        <button class="btn-modal-save" id="loginSubmit" type="submit" style="width:100%">Sign in</button>
+      </form>
+    </div>
+  </div>
+
+
+  <dialog id="returnsDialog" aria-labelledby="returnsTitle">
+    <header class="returns-heading"><div><h2 id="returnsTitle">Return / Exchange</h2><p class="return-muted">Original receipt required · Admin only</p></div><button type="button" class="btn-nav" id="returnsClose">Close</button></header>
+    <div class="returns-content">
+      <fieldset id="returnsFields">
+        <section class="return-section"><h3>1. Find the original receipt</h3>
+          <label class="form-label" for="returnsRecent">Recent receipts (latest 100)</label><select class="form-select" id="returnsRecent"></select>
+          <div class="return-controls" style="margin-top:12px"><label>Receipt number<input class="form-input" id="returnsReceiptNo" placeholder="PB-…" maxlength="100"></label><button type="button" class="btn-nav primary" id="returnsFind">Find receipt</button></div>
+          <p id="returnsReceiptInfo" class="return-muted">Find an original receipt to begin.</p>
+        </section>
+        <section class="return-section"><h3>2. Select items to return</h3><p class="return-muted">Enter base units, not cartons. Select zero to leave an item unchanged. Damaged items will not be restocked.</p><div id="returnsOriginalItems"></div></section>
+        <section class="return-section"><h3>3. Choose refund or exchange</h3>
+          <label class="form-label" for="returnsMode">Settlement mode</label><select class="form-select" id="returnsMode"><option value="CashRefund">Return — refund / reduce credit debt</option><option value="Exchange">Exchange for replacement products</option></select>
+          <div id="returnsReplacementSection" hidden style="margin-top:16px"><div class="return-controls"><label>Replacement product<select class="form-select" id="returnsProduct"></select></label><label>Price tier<select class="form-select" id="returnsReplacementTier"><option>Retail</option><option>Wholesale</option></select></label><label>Quantity (units or wholesale packs)<input class="form-input" id="returnsReplacementQty" type="number" min="1" max="1000000" step="1" value="1"></label><button type="button" class="btn-nav" id="returnsAddReplacement">Add replacement</button></div><div id="returnsReplacementItems"></div></div>
+          <label class="form-label" for="returnsReason" style="margin-top:14px">Reason</label><textarea class="form-input" id="returnsReason" rows="2" maxlength="500" placeholder="Why is the customer returning these items?"></textarea>
+        </section>
+      </fieldset>
+      <section class="return-section" id="returnsSettlement" hidden><h3>4. Review the settlement</h3><div id="returnsAmounts"></div><p class="return-muted">Returned items use their original value and allocated tax. Credit returns reduce outstanding account debt first. Replacement items use current prices and tax.</p></section>
+      <p id="returnsMessage" role="status" aria-live="polite"></p>
+      <div class="returns-actions"><button type="button" class="btn-nav primary" id="returnsPreview">Preview settlement</button><button type="button" class="btn-nav" id="returnsEdit">Edit selections</button><button type="button" class="btn-modal-save" id="returnsConfirm" disabled>Confirm & record return</button></div>
+    </div>
+  </dialog>
+
+
+  <dialog id="stockDialog" aria-labelledby="stockTitle">
+    <header class="returns-heading"><div><h2 id="stockTitle">Stock management</h2><p class="return-muted">Restocking, corrections, and movement history · Admin only</p></div><button type="button" class="btn-nav" id="stockClose">Close</button></header>
+    <div class="returns-content">
+      <fieldset id="stockFields">
+        <section class="return-section"><h3>Record a stock change</h3>
+          <label class="form-label" for="stockProduct">Product</label><select class="form-select" id="stockProduct"></select>
+          <div class="return-controls" style="margin-top:12px"><label>Operation<select class="form-select" id="stockOperation"><option value="Restock">Restock — new inventory received</option><option value="Adjustment">Adjustment — correction or damaged stock</option></select></label><label>Quantity change (base units)<input class="form-input" id="stockChange" type="number" step="1" min="1" max="2147483647" placeholder="For example: 50 or -3"></label></div>
+          <p class="return-muted" id="stockEstimate">Select a product to see its current stock.</p>
+          <p class="return-muted">Use a positive quantity to add stock and a negative adjustment to remove stock. One carton with 12 packs adds 12 base units. For a stock count of 95 when the system shows 100, enter an adjustment of -5.</p>
+          <label class="form-label" for="stockReason" style="margin-top:12px">Reason</label><textarea class="form-input" id="stockReason" rows="2" maxlength="500" placeholder="Supplier delivery, damaged packs, or stock-count correction"></textarea>
+        </section>
+      </fieldset>
+      <div class="returns-actions"><button type="button" class="btn-modal-save" id="stockSave">Record stock change</button><button type="button" class="btn-nav" id="stockReload">Refresh stock & history</button></div>
+      <p id="stockMessage" role="status" aria-live="polite"></p>
+      <section class="return-section"><h3>Recent movements</h3><p class="return-muted">Latest 100 movements for the selected product, or all products when none is selected. Times use Asia/Karachi. Stock after is the value at the time of each movement.</p>
+        <div class="stock-history-wrap"><table id="stockHistory"><thead><tr><th>Date & time</th><th>Product</th><th>Operation</th><th>Change</th><th>Stock after</th><th>Reason / staff</th></tr></thead><tbody id="stockHistoryBody"></tbody></table></div>
+      </section>
+    </div>
+  </dialog>
+
+  <!-- ==================== LOGIC ==================== -->
+  <script>
+    /* Default initial dataset for Pakistani Supermarket */
+    const DEFAULT_STORE_SETTINGS = {
+      storeName: 'PakBazaar Wholesale & Retail',
+      tagline: 'Wholesale & Retail Supermarket',
+      branch: 'Gulberg III, Lahore · Register 01',
+      address: 'Main Commercial Market, Gulberg III, Lahore, Pakistan',
+      phone: '+92 42 35712345',
+      taxId: 'NTN: 8472910-3',
+      currency: 'Rs.',
+      taxRate: 0,
+      receiptWidth: '80mm',
+      icon: '🛒',
+      footer: 'JazakAllah Khair for shopping at PakBazaar!\nExchanges accepted within 3 days with original bill.'
+    };
+
+    /* State belongs to the signed-in database account. */
+    let storeSettings = { ...DEFAULT_STORE_SETTINGS };
+    let staffList = [];
+    let products = [];
+    let creditRecords = [];
+    let customers = [];
+    let salesHistory = [];
+    let currentUser = {name:'Not signed in', role:'Guest', id:null};
+    let activeSaleMode = 'Retail';
+    const cart = new Map();
+    let currentCategory = 'All';
+    let selectedPaymentMethod = 'Cash';
+    let isBackendOnline = false;
+    let authToken = '';
+    function readSession(key) { try { return sessionStorage.getItem(key); } catch { return null; } }
+    function writeSession(key, value) { try { if(value === null) sessionStorage.removeItem(key); else sessionStorage.setItem(key,value); } catch {} }
+    authToken = readSession('pos_access_token') || '';
+    const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    function saveLocally() {} // Business records are saved by the API, never as local-only sales.
+    function logout() {
+      document.getElementById('returnsDialog')?.close();
+      document.getElementById('stockDialog')?.close();
+      authToken=''; writeSession('pos_access_token',null);
+      currentUser={name:'Not signed in',role:'Guest',id:null};
+      products=[]; staffList=[]; creditRecords=[]; customers=[]; salesHistory=[]; cart.clear();
+      document.querySelectorAll('.modal-overlay').forEach(x=>x.classList.remove('open'));
+      document.getElementById('loginOverlay').style.display='grid';
+      updateActiveUserUI(); renderProducts(); renderCart();
+    }
+    async function api(url, options={}) {
+      const headers = new Headers(options.headers || {});
+      if(authToken) headers.set('Authorization', `Bearer ${authToken}`);
+      if(options.body && !(options.body instanceof FormData)) headers.set('Content-Type','application/json');
+      let response;
+      try { response=await fetch(url,{...options,headers,cache:'no-store'}); }
+      catch { throw new Error('Cannot reach the backend. Check that npm run dev is running.'); }
+      const raw=await response.text(); let data;
+      try { data=JSON.parse(raw); } catch { throw new Error('API returned HTML or invalid JSON. Open this page through http://127.0.0.1:3000.'); }
+      if(!response.ok) {
+        if(response.status===401 && url!=='/api/auth/login') logout();
+        const detail=data.details?.map(x=>`${x.field}: ${x.message}`).join('; ');
+        const error=new Error(detail || data.error || `Request failed (${response.status})`); error.status=response.status; error.code=data.code; throw error;
+      }
+      return data;
+    }
+    function post(url, body, method='POST') { return api(url,{method,body:JSON.stringify(body)}); }
+    function normalSale(sale, items=[]) {
+      const date=new Date(sale.created_at);
+      return {...sale,receiptNo:sale.receipt_no,saleType:sale.sale_type,cashier:sale.cashier_name,
+        formattedDate:date.toLocaleDateString('en-GB'),formattedTime:date.toLocaleTimeString(),
+        subtotal:Number(sale.subtotal),tax:Number(sale.tax),total:Number(sale.total),
+        items:items.map(i=>({...i,name:i.product_name,price:Number(i.price),qty:Number(i.qty)}))};
+    }
+    async function allCredits() {
+      let result=[];
+      for(let offset=0;;offset+=200) { const page=await api(`/api/credits?offset=${offset}`); result.push(...page); if(page.length<200) return result; }
+    }
+
+        /* Sound Synthesizer */
+    let audioCtx = null;
+    function playBeep(type = 'beep') {
+      try { const Audio = window.AudioContext || window.webkitAudioContext; if(!Audio) return; audioCtx ||= new Audio(); if(audioCtx.state==='suspended') audioCtx.resume().catch(()=>{}); } catch { return; }
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      const now = audioCtx.currentTime;
+      if (type === 'beep') {
+        osc.frequency.setValueAtTime(880, now);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        osc.start(now);
+        osc.stop(now + 0.08);
+      } else if (type === 'success') {
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.setValueAtTime(659.25, now + 0.08);
+        osc.frequency.setValueAtTime(783.99, now + 0.16);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+        osc.start(now);
+        osc.stop(now + 0.28);
+      } else if (type === 'error') {
+        osc.frequency.setValueAtTime(220, now);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.2);
+      }
+    }
+
+    /* Currency formatting */
+    function formatMoney(n) {
+      const val = Number(n) || 0;
+      return `${storeSettings.currency} ${val.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toastBox');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.remove('show'), 2600);
+    }
+
+    async function checkBackendConnection() {
+      try {
+        const health=await api('/api/health');
+        isBackendOnline=health.status==='ok' && health.database==='connected';
+      } catch { isBackendOnline=false; }
+      document.getElementById('backendStatusPill').className='backend-status-pill'+(isBackendOnline?' online':'');
+      document.getElementById('backendStatusText').textContent=isBackendOnline?'Database connected':'Backend unavailable';
+    }
+    async function syncFromBackend() {
+      if(!authToken) return;
+      const [prods,settings,credits,sales,custs,staff] = await Promise.all([
+        api('/api/products'),api('/api/settings'),allCredits(),api('/api/sales'),api('/api/customers'),
+        currentUser.role==='Admin'?api('/api/staff'):Promise.resolve([])
+      ]);
+      products=prods.map(p=>({...p,cat:p.category,stock:Number(p.stock),retail_price:Number(p.retail_price),wholesale_price:Number(p.wholesale_price)}));
+      storeSettings={storeName:settings.store_name,tagline:settings.tagline||'',branch:settings.branch||'',address:settings.address||'',phone:settings.phone||'',taxId:settings.tax_id||'',currency:settings.currency,taxRate:Number(settings.tax_rate),receiptWidth:settings.receipt_width,icon:settings.icon||'🛒',footer:settings.footer||''};
+      creditRecords=credits.map(c=>({...c,id:c.customer_id,balance:Number(c.balance)}));
+      salesHistory=sales.map(x=>normalSale(x)); customers=custs; staffList=staff;
+      const select=document.getElementById('creditCustomerId');
+      select.replaceChildren(new Option('Select existing customer',''));
+      customers.forEach(c=>select.add(new Option(`${c.name} ${c.phone||''}`,c.id)));
+      applyStoreBranding(); updateActiveUserUI(); renderCategories(); renderProducts(); renderCart();
+    }
+
+        /* Sale Mode Switcher (Retail vs Wholesale) */
+    function setSaleMode(mode) {
+      activeSaleMode = mode;
+      document.body.className = `mode-${mode.toLowerCase()}`;
+
+      document.getElementById('btnModeRetail').className = `mode-switch-btn ${mode === 'Retail' ? 'active retail' : ''}`;
+      document.getElementById('btnModeWholesale').className = `mode-switch-btn ${mode === 'Wholesale' ? 'active wholesale' : ''}`;
+
+      const banner = document.getElementById('modeBanner');
+      if (mode === 'Retail') {
+        banner.className = 'mode-banner retail';
+        banner.innerHTML = `<div><b>🛍️ Active Billing Mode: RETAIL (پرچون)</b> — Selling individual consumer packs at standard retail prices.</div>
+                            <button class="btn-nav" style="padding: 3px 8px; font-size: 11px;" onclick="setSaleMode('Wholesale')">Switch to Wholesale ➔</button>`;
+        document.getElementById('cartSaleTypePill').className = 'cart-sale-type-pill retail';
+        document.getElementById('cartSaleTypePill').textContent = 'Retail';
+      } else {
+        banner.className = 'mode-banner wholesale';
+        banner.innerHTML = `<div><b>📦 Active Billing Mode: WHOLESALE (تھوک)</b> — Selling bulk cartons/sacks at discounted wholesale merchant rates.</div>
+                            <button class="btn-nav" style="padding: 3px 8px; font-size: 11px;" onclick="setSaleMode('Retail')">Switch to Retail ➔</button>`;
+        document.getElementById('cartSaleTypePill').className = 'cart-sale-type-pill wholesale';
+        document.getElementById('cartSaleTypePill').textContent = 'Wholesale';
+      }
+
+      renderProducts();
+      showToast(`Switched to ${mode} Mode (${mode === 'Wholesale' ? 'تھوک' : 'پرچون'})`);
+    }
+
+    /* Branding & UI Sync */
+    function applyStoreBranding() {
+      document.title = `${esc(storeSettings.storeName)} — Wholesale & Retail POS`;
+      document.getElementById('headerStoreName').textContent = storeSettings.storeName;
+      document.getElementById('headerStoreIcon').textContent = storeSettings.icon || '🛒';
+      document.getElementById('headerBranchBadge').textContent = storeSettings.branch || 'POS-01';
+      document.getElementById('headerTagline').textContent = storeSettings.tagline || 'Wholesale & Retail';
+      document.getElementById('loginStoreTitle').textContent = storeSettings.storeName;
+      document.getElementById('loginLogoIcon').textContent = storeSettings.icon || '🛒';
+      document.documentElement.style.setProperty('--receipt-width', storeSettings.receiptWidth || '80mm');
+      document.getElementById('taxLabel').textContent = `Tax (${storeSettings.taxRate}%)`;
+    }
+
+    function updateActiveUserUI() {
+      document.getElementById('activeUserName').textContent = currentUser.name;
+      const roleBadge = document.getElementById('activeUserRole');
+      roleBadge.textContent = currentUser.role;
+      roleBadge.className = `user-role-badge ${currentUser.role.toLowerCase()}`;
+      document.getElementById('activeUserAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
+
+      const isAdmin = currentUser.role === 'Admin';
+      document.getElementById('btnOpenReturns').style.display=isAdmin?'inline-flex':'none';
+      document.getElementById('btnOpenStock').style.display=isAdmin?'inline-flex':'none';
+      document.getElementById('btnOpenSettings').style.display = isAdmin ? 'inline-flex' : 'none';
+      document.getElementById('btnOpenStaff').style.display = isAdmin ? 'inline-flex' : 'none';
+      document.getElementById('btnOpenAddProduct').style.display=isAdmin?'inline-flex':'none';
+    }
+
+    /* Category Rendering */
+    function renderCategories() {
+      const cats = ['All', ...new Set(products.map(p => p.cat || p.category))];
+      const container = document.getElementById('categoriesBar');
+      container.innerHTML = cats.map(cat => {
+        return `<button class="category-chip ${cat === currentCategory ? 'active' : ''}" onclick="setCategoryByIndex(${cats.indexOf(cat)})">
+          <span>${cat}</span>
+        </button>`;
+      }).join('');
+    }
+
+    function setCategoryByIndex(index) { setCategory(['All', ...new Set(products.map(p => p.cat || p.category))][index]); }
+    function setCategory(cat) {
+      currentCategory = cat;
+      renderCategories();
+      renderProducts();
+    }
+
+    /* Product Cards Rendering */
+    function renderProducts() {
+      const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+      const grid = document.getElementById('productsGrid');
+
+      const filtered = products.filter(p => {
+        const cat = p.cat || p.category;
+        const matchesCat = (currentCategory === 'All' || cat === currentCategory);
+        const matchesQuery = p.name.toLowerCase().includes(q) || 
+                             (p.barcode && p.barcode.includes(q));
+        return matchesCat && matchesQuery;
+      });
+
+      if (!filtered.length) {
+        grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--slate-400);">No matching products found.</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(p => {
+        const isWholesale = activeSaleMode === 'Wholesale';
+        const packSize = p.wholesale_pack_size || 12;
+        const wholesalePackPrice = (p.wholesale_price || p.retail_price) * packSize;
+        const totalPacks = Math.floor(p.stock / packSize);
+        const isLowStock = p.stock < (packSize);
+        const isAdmin = currentUser.role === 'Admin';
+      document.getElementById('btnOpenReturns').style.display=isAdmin?'inline-flex':'none';
+      document.getElementById('btnOpenStock').style.display=isAdmin?'inline-flex':'none';
+
+        return `
+          <div class="product-card" onclick="addToCart(${p.id})">
+            <div class="product-image-wrap">
+              ${p.image 
+                ? `<img src="${esc(/^https?:\/\//i.test(p.image || '') ? p.image : '')}" alt="${esc(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                   <div class="fallback-emoji" style="display:none;">${p.emoji || '🛍️'}</div>`
+                : `<div class="fallback-emoji">${p.emoji || '🛍️'}</div>`
+              }
+              <span class="stock-tag ${isLowStock ? 'low' : ''}">
+                ${p.stock} pcs (${totalPacks} ${p.wholesale_unit ? p.wholesale_unit.split(' ')[0] : 'Ctn'})
+              </span>
+              ${isWholesale ? `<span class="wholesale-badge-card">Wholesale</span>` : ''}
+              ${isAdmin ? `
+                <button class="edit-btn-quick" onclick="event.stopPropagation(); editProductModal(${p.id})" title="Edit Product">
+                  <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                </button>
+              ` : ''}
+            </div>
+            <div class="product-info">
+              <div>
+                <h3 class="product-title">${esc(p.name)}</h3>
+                <div class="product-units-row">
+                  <span class="product-retail-unit">Single: ${esc(p.unit)}</span>
+                  <span class="product-wholesale-unit">Bulk: ${p.wholesale_unit || 'Carton of ' + packSize}</span>
+                </div>
+              </div>
+              <div class="product-bottom">
+                <div class="price-display-block">
+                  ${isWholesale ? `
+                    <span class="product-main-price">${formatMoney(wholesalePackPrice)}</span>
+                    <span class="product-sub-price">${formatMoney(p.wholesale_price)} / pc</span>
+                  ` : `
+                    <span class="product-main-price">${formatMoney(p.retail_price)}</span>
+                    <span class="product-sub-price">Bulk: ${formatMoney(p.wholesale_price)}/pc</span>
+                  `}
+                </div>
+                <button class="btn-add-cart" aria-label="Add">+</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /* Cart Management */
+    function addToCart(prodId) {
+      const prod = products.find(x => x.id === prodId);
+      if (!prod) return;
+
+      const isWholesale = activeSaleMode === 'Wholesale';
+      const packSize = isWholesale ? (prod.wholesale_pack_size || 12) : 1;
+      const pricePerUnit = isWholesale ? prod.wholesale_price : prod.retail_price;
+      const packPrice = isWholesale ? (pricePerUnit * packSize) : pricePerUnit;
+
+      const cartKey = `${prod.id}_${isWholesale ? 'wholesale' : 'retail'}`;
+      const existing = cart.get(cartKey);
+      const currentQty = existing ? existing.qty : 0;
+      const baseUnitsNeeded = (currentQty + 1) * packSize;
+
+      // Count total base units currently in cart for this product
+      let totalBaseUnitsInCart = 0;
+      cart.forEach((val) => {
+        if (val.prodId === prod.id) {
+          totalBaseUnitsInCart += (val.qty * val.packSize);
+        }
+      });
+
+      if (totalBaseUnitsInCart + packSize > prod.stock) {
+        showToast(`Stock limit reached for ${prod.name}! Only ${prod.stock} base pieces left.`);
+        playBeep('error');
+        return;
+      }
+
+      cart.set(cartKey, {
+        cartKey,
+        prodId: prod.id,
+        name: prod.name,
+        emoji: prod.emoji,
+        image: prod.image,
+        tier: isWholesale ? 'wholesale' : 'retail',
+        packName: isWholesale ? (prod.wholesale_unit || 'Carton') : (prod.unit || 'Piece'),
+        packSize: packSize,
+        unitRate: pricePerUnit,
+        price: packPrice,
+        qty: currentQty + 1
+      });
+
+      playBeep('beep');
+      renderCart();
+    }
+
+    function toggleCartItemTier(cartKey) {
+      const item = cart.get(cartKey);
+      if (!item) return;
+
+      const prod = products.find(p => p.id === item.prodId);
+      if (!prod) return;
+
+      const newTier = item.tier === 'retail' ? 'wholesale' : 'retail';
+      cart.delete(cartKey);
+
+      const isWholesale = newTier === 'wholesale';
+      const packSize = isWholesale ? (prod.wholesale_pack_size || 12) : 1;
+      const pricePerUnit = isWholesale ? prod.wholesale_price : prod.retail_price;
+      const packPrice = isWholesale ? (pricePerUnit * packSize) : pricePerUnit;
+      const newCartKey = `${prod.id}_${newTier}`;
+
+      cart.set(newCartKey, {
+        cartKey: newCartKey,
+        prodId: prod.id,
+        name: prod.name,
+        emoji: prod.emoji,
+        image: prod.image,
+        tier: newTier,
+        packName: isWholesale ? (prod.wholesale_unit || 'Carton') : (prod.unit || 'Piece'),
+        packSize: packSize,
+        unitRate: pricePerUnit,
+        price: packPrice,
+        qty: 1
+      });
+
+      renderCart();
+      showToast(`Item changed to ${newTier.toUpperCase()}`);
+    }
+
+    function changeCartQty(cartKey, delta) {
+      const item = cart.get(cartKey);
+      if (!item) return;
+
+      const prod = products.find(p => p.id === item.prodId);
+      const newQty = item.qty + delta;
+
+      if (newQty <= 0) {
+        cart.delete(cartKey);
+      } else {
+        // Check stock
+        if (delta > 0 && prod) {
+          let totalBaseInCart = 0;
+          cart.forEach(v => {
+            if (v.prodId === prod.id) totalBaseInCart += (v.qty * v.packSize);
+          });
+          if (totalBaseInCart + item.packSize > prod.stock) {
+            showToast(`Insufficient stock! ${prod.stock} total base units available.`);
+            playBeep('error');
+            return;
+          }
+        }
+        item.qty = newQty;
+      }
+      renderCart();
+    }
+
+    function removeCartItem(cartKey) {
+      cart.delete(cartKey);
+      renderCart();
+    }
+
+    function clearCart() {
+      if (!cart.size) return;
+      if (confirm('Clear current order?')) {
+        cart.clear();
+        renderCart();
+        showToast('Order cleared');
+      }
+    }
+
+    function renderCart() {
+      const items = [...cart.values()];
+      const totalItemCount = items.reduce((sum, item) => sum + item.qty, 0);
+      document.getElementById('cartBadgeCount').textContent = `${totalItemCount} packs`;
+
+      const listContainer = document.getElementById('cartItemsList');
+      if (!items.length) {
+        listContainer.innerHTML = `
+          <div class="cart-empty">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+            <p style="font-weight: 700; color: var(--ink); margin-bottom: 2px;">Cart is empty</p>
+            <p style="font-size: 12px;">Click a product or scan barcode to begin.</p>
+          </div>
+        `;
+      } else {
+        listContainer.innerHTML = items.map(item => `
+          <div class="cart-item-row">
+            <div class="cart-item-img">
+              ${item.image ? `<img src="${item.image}" alt="">` : (item.emoji || '🛍️')}
+            </div>
+            <div class="cart-item-details">
+              <span class="cart-item-name">${esc(item.name)}</span>
+              <div class="cart-item-tier-toggle" onclick="toggleCartItemTier('${item.cartKey}')" title="Click to toggle between Retail and Wholesale">
+                ${item.tier === 'wholesale' ? `📦 Wholesale · ${item.packName}` : `🛍️ Retail · Single`} ⇄
+              </div>
+              <span class="cart-item-rate">${formatMoney(item.price)} per pack</span>
+              <div class="cart-item-stepper">
+                <button class="stepper-btn" onclick="changeCartQty('${item.cartKey}', -1)">−</button>
+                <span class="stepper-qty">${item.qty}</span>
+                <button class="stepper-btn" onclick="changeCartQty('${item.cartKey}', 1)">+</button>
+              </div>
+            </div>
+            <div class="cart-item-end">
+              <span class="cart-item-total">${formatMoney(item.price * item.qty)}</span>
+              <button class="btn-remove-item" onclick="removeCartItem('${item.cartKey}')">×</button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      const subtotal = items.reduce((s, x) => s + (x.price * x.qty), 0);
+      const tax = subtotal * (Number(storeSettings.taxRate) / 100);
+      const grandTotal = subtotal + tax;
+
+      document.getElementById('summarySubtotal').textContent = formatMoney(subtotal);
+      document.getElementById('summaryTax').textContent = formatMoney(tax);
+      document.getElementById('summaryTotal').textContent = formatMoney(grandTotal);
+
+      const checkoutBtn = document.getElementById('btnCheckout');
+      checkoutBtn.disabled = items.length === 0;
+      document.getElementById('checkoutBtnLabel').textContent = `Complete Sale · ${formatMoney(grandTotal)}`;
+
+      updateChangeCalculator(grandTotal);
+    }
+
+    function updateChangeCalculator(total) {
+      const grandTotal = total !== undefined ? total : getCurrentGrandTotal();
+      const tenderedInput = document.getElementById('cashTenderedInput');
+      const tenderedVal = parseFloat(tenderedInput.value) || 0;
+      const changeReturn = Math.max(0, tenderedVal - grandTotal);
+      document.getElementById('changeReturnBadge').textContent = `Change: ${formatMoney(changeReturn)}`;
+    }
+
+    function quickCash(val) {
+      const total = getCurrentGrandTotal();
+      const input = document.getElementById('cashTenderedInput');
+      if (val === 'exact') input.value = Math.ceil(total);
+      else input.value = (parseFloat(input.value) || 0) + Number(val);
+      updateChangeCalculator();
+    }
+
+    function getCurrentGrandTotal() {
+      const items = [...cart.values()];
+      const subtotal = items.reduce((s, x) => s + (x.price * x.qty), 0);
+      return subtotal + (subtotal * (Number(storeSettings.taxRate) / 100));
+    }
+
+    /* Barcode Auto-Scan */
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', renderProducts);
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const code = searchInput.value.trim();
+        if (!code) return;
+        const match = products.find(p => p.barcode === code) || products.find(p => p.name.toLowerCase() === code.toLowerCase());
+        if (match) {
+          addToCart(match.id);
+          searchInput.value = '';
+          renderProducts();
+          showToast(`Scanned: ${match.name}`);
+        } else {
+          showToast(`No item matching barcode: ${code}`);
+          playBeep('error');
+        }
+      }
+    });
+
+    /* Payment Mode Buttons */
+    document.querySelectorAll('.pay-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedPaymentMethod = btn.dataset.method;
+        document.getElementById('cashTenderDrawer').classList.toggle('show', selectedPaymentMethod === 'Cash');
+        document.getElementById('creditDrawer').classList.toggle('show', selectedPaymentMethod === 'Credit');
+      });
+    });
+    document.getElementById('cashTenderedInput').addEventListener('input', () => updateChangeCalculator());
+
+    let checkingOut=false;
+    document.getElementById('btnCheckout').addEventListener('click', async () => {
+      if(checkingOut || !authToken) return;
+      const items=[...cart.values()];
+      let pending;
+      try { pending=JSON.parse(readSession(`pos_pending_sale_${currentUser.id}`)||'null'); } catch { pending=null; }
+      if(!items.length && !pending) return;
+      checkingOut=true; const button=document.getElementById('btnCheckout'); button.disabled=true;
+      try {
+        let body=pending;
+        if(body) {
+          if(!confirm('Retry the earlier unconfirmed checkout? This retries its original items and payment.')) return;
+        } else {
+          const customerId=Number(document.getElementById('creditCustomerId').value)||null;
+          if(selectedPaymentMethod==='Credit' && !customerId) throw new Error('Select an existing customer. Create customers from the Khata screen.');
+          body={request_id:crypto.randomUUID(),customer_id:customerId,sale_type:activeSaleMode,payment_method:selectedPaymentMethod,
+            items:items.map(i=>({product_id:i.prodId,qty:i.qty,tier:i.tier.toLowerCase()==='wholesale'?'Wholesale':'Retail'}))};
+          if(selectedPaymentMethod==='Cash') {
+            const amount=document.getElementById('cashTenderedInput').value;
+            if(amount.trim()==='') throw new Error('Enter the cash amount received.');
+            body.tendered_amount=Number(amount);
+            if(!Number.isFinite(body.tendered_amount) || body.tendered_amount<0) throw new Error('Invalid cash amount.');
+          }
+          writeSession(`pos_pending_sale_${currentUser.id}`, JSON.stringify(body));
+        }
+        let result;
+        try { result=await post('/api/sales',body); }
+        catch(error) {
+          if(error.status && error.status>=400 && error.status<500 && error.status!==409) writeSession(`pos_pending_sale_${currentUser.id}`, null);
+          throw error;
+        }
+        writeSession(`pos_pending_sale_${currentUser.id}`, null); cart.clear();
+        document.getElementById('cashTenderedInput').value=''; renderCart();
+        showReceiptPreview(normalSale(result.sale,result.items));
+        showToast(`Sale saved: ${result.sale.receipt_no}`);
+        try { await syncFromBackend(); } catch(e) { showToast(`Sale saved. Refresh failed: ${e.message}`); }
+      } catch(error) { showToast(error.message); }
+      finally { checkingOut=false; renderCart(); }
+    });
+    const recoverButton=document.createElement('button'); recoverButton.className='btn-nav'; recoverButton.textContent='Recover pending sale';
+    recoverButton.onclick=()=>document.getElementById('btnCheckout').dispatchEvent(new Event('click'));
+    document.getElementById('btnCheckout').parentElement.appendChild(recoverButton);
+
+        /* Thermal Receipt & Wholesale Invoice Preview */
+    function showReceiptPreview(sale) {
+      document.documentElement.style.setProperty('--receipt-width', storeSettings.receiptWidth || '80mm');
+      const container = document.getElementById('receiptContainer');
+      const isWholesale = sale.saleType === 'Wholesale';
+
+      document.getElementById('receiptModalHeading').textContent = isWholesale ? 'Wholesale Commercial Invoice' : 'Retail Sales Receipt';
+
+      container.innerHTML = `
+        <div class="receipt-header">
+          <div class="receipt-store-name">${esc(storeSettings.storeName)}</div>
+          <div>${esc(storeSettings.tagline)}</div>
+          <div>${esc(storeSettings.address)}</div>
+          <div>Tel: ${esc(storeSettings.phone)}</div>
+          ${storeSettings.taxId ? `<div>${esc(storeSettings.taxId)}</div>` : ''}
+          <div style="margin-top: 6px; font-weight: 800; font-size: 13px;">
+            ${isWholesale ? '📦 WHOLESALE COMMERCIAL INVOICE (تھوک بل)' : '🛍️ RETAIL SALES RECEIPT'}
+          </div>
+          <div>Invoice #${sale.receiptNo}</div>
+          <div>Date: ${esc(sale.formattedDate || '')} ${esc(sale.formattedTime || '')}</div>
+          <div>Cashier: <b>${esc(sale.cashier)}</b></div>
+          ${sale.customer_name ? `<div>Buyer: <b>${esc(sale.customer_name)}</b> (${esc(sale.customer_phone || '')})</div>` : ''}
+        </div>
+
+        <hr class="receipt-divider">
+
+        <table class="receipt-table">
+          <thead>
+            <tr>
+              <th>Item Description</th>
+              <th style="text-align: center;">Qty</th>
+              <th style="text-align: right;">Rate</th>
+              <th style="text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sale.items.map(item => `
+              <tr>
+                <td>
+                  ${esc(item.name)}<br>
+                  <span style="font-size: 9.5px; color: #555;">[${item.pack_name || (item.tier === 'wholesale' ? 'Carton' : 'Piece')}]</span>
+                </td>
+                <td style="text-align: center;">${item.qty}</td>
+                <td style="text-align: right;">${item.price.toFixed(2)}</td>
+                <td style="text-align: right;">${(item.price * item.qty).toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <hr class="receipt-divider">
+
+        <div class="receipt-row"><span>Subtotal:</span><span>${formatMoney(sale.subtotal)}</span></div>
+        ${sale.tax > 0 ? `<div class="receipt-row"><span>Sales Tax (${Number(sale.tax_rate ?? storeSettings.taxRate)}%):</span><span>${formatMoney(sale.tax)}</span></div>` : ''}
+        <div class="receipt-row receipt-total-row" style="margin: 4px 0;">
+          <span>GRAND TOTAL:</span><span>${formatMoney(sale.total)}</span>
+        </div>
+
+        <hr class="receipt-divider">
+
+        <div class="receipt-row"><span>Payment Method:</span><span><b>${sale.payment_method}</b></span></div>
+        ${sale.payment_method === 'Cash' ? `
+          <div class="receipt-row"><span>Tendered:</span><span>${formatMoney(sale.tendered_amount)}</span></div>
+          <div class="receipt-row"><span>Change:</span><span>${formatMoney(sale.change_amount)}</span></div>
+        ` : ''}
+
+        <hr class="receipt-divider">
+        <div class="receipt-footer">${esc(storeSettings.footer).replace(/\n/g, '<br>')}</div>
+      `;
+
+      openModal('receiptModal');
+    }
+
+    /* Modal open/close helpers */
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    document.querySelectorAll('.modal-overlay').forEach(m => {
+      m.addEventListener('click', (e) => { if (e.target === m) m.classList.remove('open'); });
+    });
+
+    /* Live calculation preview in Product Form */
+    function updateProductModalCalculations() {
+      const packSize = parseInt(document.getElementById('prodWholesalePackSize').value, 10) || 1;
+      const wholesalePrice = parseFloat(document.getElementById('prodWholesalePrice').value) || 0;
+      const unitName = document.getElementById('prodWholesaleUnit').value.trim() || 'Carton';
+      const stock = parseInt(document.getElementById('prodStock').value, 10) || 0;
+
+      const packTotal = packSize * wholesalePrice;
+      document.getElementById('wholesaleCalcPreview').innerHTML = `1 ${unitName} = ${packSize} pcs × Rs. ${wholesalePrice} = <b>${formatMoney(packTotal)}</b>`;
+
+      const totalPacks = (stock / packSize).toFixed(1);
+      document.getElementById('stockConversionHint').textContent = `${stock} pcs = approx. ${totalPacks} ${unitName}s`;
+    }
+
+    ['prodWholesalePackSize', 'prodWholesalePrice', 'prodWholesaleUnit', 'prodStock'].forEach(id => {
+      document.getElementById(id).addEventListener('input', updateProductModalCalculations);
+    });
+
+    /* Add / Edit Product Modal */
+    let currentImageBase64 = '';
+
+    document.getElementById('btnOpenAddProduct').addEventListener('click', () => {
+      document.getElementById('productModalTitle').textContent = 'Add Product (Retail & Wholesale)';
+      document.getElementById('productForm').reset();
+      document.getElementById('prodEditId').value = '';
+      document.getElementById('prodStock').disabled=false;
+      document.getElementById('prodImageFile').value='';
+      document.getElementById('btnDeleteProduct').style.display = 'none';
+      currentImageBase64 = '';
+      updateImagePreviewBox('');
+      updateProductModalCalculations();
+      openModal('productModal');
+    });
+
+    function editProductModal(prodId) {
+      const p = products.find(x => x.id === prodId);
+      if (!p) return;
+
+      document.getElementById('productModalTitle').textContent = 'Edit Product';
+      document.getElementById('prodEditId').value = p.id;
+      document.getElementById('prodStock').disabled=true;
+      document.getElementById('prodImageFile').value='';
+      document.getElementById('prodName').value = p.name;
+      document.getElementById('prodBarcode').value = p.barcode;
+      document.getElementById('prodCategory').value = p.cat || p.category || 'Produce';
+      document.getElementById('prodUnit').value = p.unit || '1 pc';
+      document.getElementById('prodRetailPrice').value = p.retail_price;
+      document.getElementById('prodWholesaleUnit').value = p.wholesale_unit || 'Carton';
+      document.getElementById('prodWholesalePackSize').value = p.wholesale_pack_size || 12;
+      document.getElementById('prodWholesalePrice').value = p.wholesale_price || p.retail_price;
+      document.getElementById('prodStock').value = p.stock;
+      document.getElementById('prodEmoji').value = p.emoji || '';
+      document.getElementById('prodImageUrl').value = p.image || '';
+      document.getElementById('btnDeleteProduct').style.display = 'inline-flex';
+
+      currentImageBase64 = p.image || '';
+      updateImagePreviewBox(currentImageBase64);
+      updateProductModalCalculations();
+      openModal('productModal');
+    }
+
+    document.getElementById('prodImageFile').addEventListener('change', function(e) {
+      const file=e.target.files[0]; if(!file) return;
+      if(file.size>3*1024*1024) { showToast('Image must be smaller than 3 MB'); this.value=''; return; }
+      const reader=new FileReader(); reader.onload=()=>updateImagePreviewBox(reader.result); reader.readAsDataURL(file);
+    });
+
+        document.getElementById('prodImageUrl').addEventListener('input', (e) => {
+      const url = e.target.value.trim();
+      currentImageBase64 = url;
+      updateImagePreviewBox(url);
+    });
+
+    document.getElementById('btnClearImage').addEventListener('click', () => {
+      currentImageBase64 = '';
+      document.getElementById('prodImageFile').value = '';
+      document.getElementById('prodImageUrl').value = '';
+      updateImagePreviewBox('');
+    });
+
+    function updateImagePreviewBox(src) {
+      const img = document.getElementById('imagePreviewImg');
+      const fallback = document.getElementById('imagePreviewFallback');
+      if (src) {
+        img.src = src;
+        img.style.display = 'block';
+        fallback.style.display = 'none';
+      } else {
+        img.src = '';
+        img.style.display = 'none';
+        fallback.style.display = 'block';
+      }
+    }
+
+    document.getElementById('productForm').addEventListener('submit',async e=>{
+      e.preventDefault(); if(currentUser.role!=='Admin') return;
+      const button=document.getElementById('btnSaveProduct'); button.disabled=true;
+      try {
+        const id=document.getElementById('prodEditId').value;
+        const value=id=>document.getElementById(id).value.trim();
+        const payload={name:value('prodName'),barcode:value('prodBarcode')||null,category:value('prodCategory'),unit:value('prodUnit'),
+          retail_price:Number(value('prodRetailPrice')),wholesale_price:Number(value('prodWholesalePrice')),
+          wholesale_unit:value('prodWholesaleUnit')||'Carton',wholesale_pack_size:Number(value('prodWholesalePackSize')),
+          emoji:value('prodEmoji')||'📦'};
+        if(!id) payload.stock=Number(value('prodStock'));
+        const saved=await post(id?`/api/products/${id}`:'/api/products',payload,id?'PATCH':'POST');
+        document.getElementById('prodEditId').value=saved.id;
+        const file=document.getElementById('prodImageFile').files[0];
+        if(file) {
+          const form=new FormData(); form.append('product_id',saved.id); form.append('image',file);
+          try { await api('/api/upload',{method:'POST',body:form}); }
+          catch(error) { await syncFromBackend(); throw new Error(`Product saved; image upload failed: ${error.message}. Retry to update this product.`); }
+        }
+        await syncFromBackend(); closeModal('productModal'); showToast('Product saved in database');
+      } catch(error) { showToast(error.message); }
+      finally { button.disabled=false; }
+    });
+    async function deleteCurrentProduct() {
+      const id=document.getElementById('prodEditId').value;
+      if(!id || !confirm('Deactivate this product?')) return;
+      try { await api(`/api/products/${id}`,{method:'DELETE'}); await syncFromBackend(); closeModal('productModal'); showToast('Product deactivated'); }
+      catch(error) { showToast(error.message); }
+    }
+
+        /* Store Settings Form */
+    document.getElementById('btnOpenSettings').addEventListener('click', () => {
+      if (currentUser.role !== 'Admin') {
+        showToast('Admin privilege required');
+        return;
+      }
+      document.getElementById('setStoreName').value = storeSettings.storeName;
+      document.getElementById('setStoreTagline').value = storeSettings.tagline;
+      document.getElementById('setStoreBranch').value = storeSettings.branch;
+      document.getElementById('setStoreAddress').value = storeSettings.address;
+      document.getElementById('setStorePhone').value = storeSettings.phone;
+      document.getElementById('setStoreTaxId').value = storeSettings.taxId || '';
+      document.getElementById('setStoreCurrency').value = storeSettings.currency;
+      document.getElementById('setStoreTaxRate').value = storeSettings.taxRate;
+      document.getElementById('setReceiptWidth').value = storeSettings.receiptWidth;
+      document.getElementById('setStoreIcon').value = storeSettings.icon;
+      document.getElementById('setReceiptFooter').value = storeSettings.footer;
+      openModal('settingsModal');
+    });
+
+    document.getElementById('storeSettingsForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      const value=id=>document.getElementById(id).value.trim();
+      try {
+        await post('/api/settings',{
+          store_name:value('setStoreName'),tagline:value('setStoreTagline'),branch:value('setStoreBranch'),address:value('setStoreAddress'),
+          phone:value('setStorePhone'),tax_id:value('setStoreTaxId'),currency:value('setStoreCurrency'),tax_rate:Number(value('setStoreTaxRate')),
+          receipt_width:value('setReceiptWidth'),icon:value('setStoreIcon')||'🛒',footer:value('setReceiptFooter')
+        },'PATCH');
+        await syncFromBackend(); closeModal('settingsModal'); showToast('Settings saved');
+      } catch(error) { showToast(error.message); }
+    });
+
+        /* Staff Management */
+    document.getElementById('btnOpenStaff').addEventListener('click', () => {
+      if (currentUser.role !== 'Admin') {
+        showToast('Admin privilege required');
+        return;
+      }
+      renderStaffTable();
+      openModal('staffModal');
+    });
+
+    function renderStaffTable() {
+      const tbody=document.getElementById('staffTableBody'); tbody.replaceChildren();
+      staffList.forEach(staff=>{
+        const tr=document.createElement('tr');
+        [staff.name,staff.role,'Email/password',staff.is_active?'Active':'Inactive'].forEach(text=>{const td=document.createElement('td');td.textContent=text;tr.appendChild(td);});
+        const td=document.createElement('td');
+        if(staff.role==='Cashier') { const button=document.createElement('button');button.className='btn-nav';button.textContent=staff.is_active?'Deactivate':'Activate';
+          button.onclick=async()=>{try { await post(`/api/staff/${staff.id}`,{is_active:!staff.is_active},'PATCH'); await syncFromBackend(); renderStaffTable(); } catch(e){showToast(e.message);} };td.appendChild(button); }
+        else td.textContent='Admin'; tr.appendChild(td);tbody.appendChild(tr);
+      });
+    }
+    document.getElementById('addStaffForm').hidden=true;
+    const staffNote=document.createElement('p'); staffNote.textContent='Create staff login accounts in Supabase Authentication, then link their staff_profiles record. PIN accounts are no longer used.';
+    document.getElementById('addStaffForm').before(staffNote);
+
+        document.getElementById('btnOpenSales').addEventListener('click',async()=>{
+      try {
+        const sales=await api('/api/sales');salesHistory=sales.map(s=>normalSale(s));
+        if(currentUser.role==='Admin') {
+          const report=await api('/api/reports/summary'); const row=report.currencies.find(x=>x.currency===storeSettings.currency)||{};
+          ['Net sales today','Cash sales today','Card sales today','Outstanding credit now'].forEach((label,i)=>document.querySelectorAll('#salesModal .metric-label')[i].textContent=label);
+          ['metricTotalRevenue','metricRetailRevenue','metricWholesaleRevenue','metricCreditSales'].forEach((id,i)=>document.getElementById(id).textContent=formatMoney([row.net_sales_including_tax,row.cash_sales,row.card_sales,row.outstanding_credit_now][i]));
+        } else { document.querySelectorAll('#salesModal .metric-val').forEach(x=>x.textContent='Admin only'); }
+        renderSalesTable(); openModal('salesModal');
+      } catch(error){showToast(error.message);}
+    });
+    function renderSalesTable() {
+      const tbody=document.getElementById('salesTableBody');tbody.replaceChildren();
+      salesHistory.forEach(s=>{
+        const tr=document.createElement('tr');
+        [s.receiptNo,s.saleType,`${s.formattedDate} ${s.formattedTime}`,s.cashier,s.payment_method,formatMoney(s.total)].forEach(text=>{const td=document.createElement('td');td.textContent=text;tr.appendChild(td);});
+        const td=document.createElement('td');const button=document.createElement('button');button.className='btn-nav';button.textContent='Invoice';button.onclick=async()=>{
+          try {const data=await api(`/api/sales/${s.id}`);showReceiptPreview(normalSale(data,data.sale_items));}catch(e){showToast(e.message);}
+        };td.appendChild(button);tr.appendChild(td);tbody.appendChild(tr);
+      });
+    }
+
+        function exportSalesCSV() {
+      if(!salesHistory.length) {showToast('No sales data to export');return;}
+      const cell=value=>{ let text=String(value??''); if(/^[=+@\-\t\r]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"'; };
+      const rows=[['Receipt','Type','Cashier','Payment','Total'],...salesHistory.map(x=>[x.receiptNo,x.saleType,x.cashier,x.payment_method,x.total])];
+      const url=URL.createObjectURL(new Blob([rows.map(row=>row.map(cell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
+      const link=document.createElement('a');link.href=url;link.download='sales.csv';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    }
+
+    document.getElementById('btnOpenCredit').addEventListener('click',async()=>{
+      try {await syncFromBackend();renderCreditTable();openModal('creditModal');}catch(e){showToast(e.message);}
+    });
+    function renderCreditTable() {
+      document.getElementById('creditTotalBalance').textContent=formatMoney(creditRecords.filter(c=>c.currency===storeSettings.currency).reduce((sum,c)=>sum+c.balance,0));
+      const tbody=document.getElementById('creditTableBody');tbody.replaceChildren();
+      creditRecords.forEach(rec=>{
+        const tr=document.createElement('tr');
+        [rec.name,rec.customer_type,rec.phone||'—',`${rec.currency} ${rec.balance.toFixed(2)}`].forEach(text=>{const td=document.createElement('td');td.textContent=text;tr.appendChild(td);});
+        const td=document.createElement('td'); if(rec.balance>0){const button=document.createElement('button');button.className='btn-nav';button.textContent='Collect payment';button.onclick=()=>settleCreditAccount(rec);td.appendChild(button);}else td.textContent='Cleared';tr.appendChild(td);tbody.appendChild(tr);
+      });
+    }
+    async function promptNewCreditCustomer() {
+      const name=prompt('Customer / shop name:'); if(!name?.trim()) return;
+      const phone=prompt('Phone: digits only, optionally starting with + (leave blank if none)');if(phone===null)return;
+      const customer_type=confirm('Wholesale customer? OK = Wholesale, Cancel = Retail')?'Wholesale':'Retail';
+      try {await post('/api/customers',{name:name.trim(),phone:phone.trim()||null,customer_type,address:''});await syncFromBackend();renderCreditTable();showToast('Customer created');}catch(e){showToast(e.message);}
+    }
+    async function settleCreditAccount(rec) {
+      const text=prompt(`Cash repayment for ${rec.name} (${rec.currency}), balance ${rec.balance}:`);if(text===null)return;
+      const amount=Number(text); if(!Number.isFinite(amount)||amount<=0||amount>rec.balance){showToast('Enter an amount up to the outstanding balance');return;}
+      const key=`pos_pending_payment_${rec.id}_${rec.currency}`;
+      let body;try{body=JSON.parse(readSession(key)||'null');}catch{}
+      if(body){if(!confirm('Retry the previous unconfirmed cash repayment?'))return;}
+      else {body={request_id:crypto.randomUUID(),currency:rec.currency,amount,payment_method:'Cash',note:'Cash received at POS'};writeSession(key,JSON.stringify(body));}
+      try {await post(`/api/credits/${rec.id}/pay`,body);writeSession(key,null);await syncFromBackend();renderCreditTable();showToast('Repayment saved');}
+      catch(e){if(e.status&&e.status>=400&&e.status<500&&e.status!==409)writeSession(key,null);showToast(e.message);}
+    }
+    document.getElementById('btnSwitchUser').addEventListener('click',logout);
+    document.getElementById('backendLoginForm').addEventListener('submit',async e=>{
+      e.preventDefault(); const button=document.getElementById('loginSubmit');button.disabled=true;
+      document.getElementById('loginError').textContent='';
+      try {
+        const data=await post('/api/auth/login',{email:document.getElementById('loginEmail').value.trim(),password:document.getElementById('loginPassword').value});
+        authToken=data.access_token;writeSession('pos_access_token',authToken);currentUser=data.user;
+        await syncFromBackend();document.getElementById('loginPassword').value='';document.getElementById('loginOverlay').style.display='none';showToast(`Welcome, ${currentUser.name}`);
+      }catch(error){document.getElementById('loginError').textContent=error.message;}
+      finally{button.disabled=false;}
+    });
+
+        /* Header quick settings edit */
+    document.getElementById('headerBrandSection').addEventListener('click', () => {
+      if (currentUser.role === 'Admin') document.getElementById('btnOpenSettings').click();
+    });
+
+    document.getElementById('btnClearCart').addEventListener('click', clearCart);
+
+    function resetDemoData() { showToast('Database reset is disabled. Business records must be managed through the backend.'); }
+    async function initPOS() {
+      applyStoreBranding();updateActiveUserUI();renderCategories();renderProducts();renderCart();
+      await checkBackendConnection();
+      if(authToken) {
+        try { const data=await api('/api/auth/me');currentUser=data.user;await syncFromBackend();document.getElementById('loginOverlay').style.display='none'; }
+        catch(error){logout();document.getElementById('loginError').textContent=error.message;}
+      }
+      if(!['http:','https:'].includes(location.protocol)) document.getElementById('loginError').textContent='Put this file in public/index.html and open http://127.0.0.1:3000.';
+    }
+
+        window.addEventListener('DOMContentLoaded', initPOS);
+    /* Return / Exchange screen: quotes and writes always use the backend. */
+    (() => {
+      const $ = id => document.getElementById(id);
+      const ui = { receipt: null, replacements: [], quote: null, busy: false, pending: null };
+      const pendingKey = () => `pos_pending_return_${currentUser.id}`;
+      const showError = message => { $('returnsMessage').textContent = message; };
+      const cash = (value, currency) => `${currency} ${Number(value || 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      function button(label, action) {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-nav'; b.textContent = label; b.onclick = action; return b;
+      }
+      function clearQuote() {
+        if (ui.pending) return;
+        ui.quote = null; $('returnsSettlement').hidden = true; $('returnsConfirm').disabled = true;
+      }
+      function busy(value) {
+        ui.busy = value;
+        $('returnsFields').disabled = value || !!ui.pending;
+        $('returnsPreview').disabled = value || !!ui.pending || !ui.receipt;
+        $('returnsConfirm').disabled = value || !(ui.quote || ui.pending);
+        $('returnsEdit').disabled = value || !!ui.pending;
+        $('returnsClose').disabled = value;
+      }
+      function summary(settlement) {
+        $('returnsSettlement').hidden = false;
+        const target = $('returnsAmounts'); target.replaceChildren();
+        const labels = [
+          ['Returned value, including original tax', 'returned_total'],
+          ['Replacement value, including current tax', 'replacement_total'],
+          ['Customer debt reduced', 'credit_applied'],
+          ['Collect cash from customer', 'cash_received'],
+          ['Pay cash back to customer', 'cash_refunded']
+        ];
+        labels.forEach(([label, key]) => {
+          const row = document.createElement('div'); row.className = 'return-amount-row';
+          const name = document.createElement('span'); name.textContent = label;
+          const value = document.createElement('strong'); value.textContent = cash(settlement[key], settlement.currency);
+          row.appendChild(name); row.appendChild(value); target.appendChild(row);
+        });
+      }
+      function reset() {
+        ui.receipt = null; ui.replacements = []; ui.quote = null; ui.pending = null;
+        $('returnsReceiptNo').value = ''; $('returnsReason').value = ''; $('returnsMode').value = 'CashRefund';
+        $('returnsOriginalItems').replaceChildren(); $('returnsReplacementItems').replaceChildren();
+        $('returnsReplacementSection').hidden = true; $('returnsSettlement').hidden = true;
+        $('returnsReceiptInfo').textContent = 'Find an original receipt to begin.';
+        showError(''); busy(false);
+      }
+      $('btnOpenReturns').addEventListener('click', async () => {
+        if (currentUser.role !== 'Admin') { showToast('Admin access required'); return; }
+        reset(); $('returnsDialog').showModal(); busy(true);
+        try {
+          await syncFromBackend();
+          $('returnsRecent').replaceChildren(new Option('Recent receipts — or paste a number below', ''));
+          salesHistory.forEach(s => $('returnsRecent').add(new Option(`${s.receiptNo} · ${cash(s.total, s.currency)} · ${s.payment_method}`, s.receiptNo)));
+          $('returnsProduct').replaceChildren(new Option('Select a replacement product', ''));
+          products.forEach(p => $('returnsProduct').add(new Option(`${p.name} · stock ${p.stock}`, p.id)));
+          const stored = readSession(pendingKey());
+          if (stored) {
+            try {
+              const pending = JSON.parse(stored);
+              if (!pending.request_id || !pending.expected_settlement) throw new Error('Invalid saved request');
+              ui.pending = pending; summary(pending.expected_settlement);
+              showError('An earlier return has an unconfirmed result. Retry it below using its original request ID; do not pay cash twice.');
+              $('returnsConfirm').textContent = 'Recover earlier return';
+            } catch { showError('A saved return request is unreadable. Ask the administrator to reconcile it before starting another return.'); ui.pending = { invalid: true }; }
+          } else $('returnsConfirm').textContent = 'Confirm & record return';
+        } catch (error) { showError(error.message); }
+        finally { busy(false); }
+      });
+      $('returnsRecent').addEventListener('change', () => { $('returnsReceiptNo').value = $('returnsRecent').value; });
+      $('returnsFind').addEventListener('click', async () => {
+        if (ui.busy || ui.pending) return;
+        const number = $('returnsReceiptNo').value.trim();
+        if (!number) { showError('Enter a receipt number.'); return; }
+        busy(true); showError(''); clearQuote(); ui.receipt = null; ui.replacements = [];
+        $('returnsOriginalItems').replaceChildren(); renderReplacements();
+        try {
+          const data = await api(`/api/returns/receipt/${encodeURIComponent(number)}`);
+          ui.receipt = data;
+          $('returnsReceiptInfo').textContent = `${data.sale.receipt_no} · ${data.sale.payment_method} · original total ${cash(data.sale.total, data.sale.currency)}${data.sale.customer_name ? ' · ' + data.sale.customer_name : ''}`;
+          renderOriginalItems();
+          if (!data.items.some(x => Number(x.remaining_base_qty) > 0)) showError('All items on this receipt have already been returned.');
+        } catch (error) { $('returnsReceiptInfo').textContent = 'Receipt not loaded'; showError(error.message); }
+        finally { busy(false); }
+      });
+      function renderOriginalItems() {
+        const target = $('returnsOriginalItems'); target.replaceChildren();
+        ui.receipt.items.forEach(item => {
+          const row = document.createElement('div'); row.className = 'return-item-row'; row.dataset.itemId = item.id;
+          const description = document.createElement('div');
+          const title = document.createElement('strong'); title.textContent = item.product_name;
+          const detail = document.createElement('p'); detail.className = 'return-muted';
+          detail.textContent = `Sold: ${item.base_qty} base units · already returned: ${item.returned_base_qty} · available: ${item.remaining_base_qty}`;
+          description.appendChild(title); description.appendChild(detail);
+          const qtyLabel = document.createElement('label'); qtyLabel.textContent = 'Return base units';
+          const qty = document.createElement('input'); qty.className = 'form-input return-qty'; qty.type = 'number'; qty.min = '0'; qty.max = String(item.remaining_base_qty); qty.step = '1'; qty.value = '0'; qty.disabled = Number(item.remaining_base_qty) === 0;
+          qty.addEventListener('input', clearQuote); qtyLabel.appendChild(qty);
+          const conditionLabel = document.createElement('label'); conditionLabel.textContent = 'Condition';
+          const condition = document.createElement('select'); condition.className = 'form-select return-condition';
+          condition.add(new Option('Sellable — restore stock', 'sellable')); condition.add(new Option('Damaged — do not restock', 'damaged'));
+          condition.addEventListener('change', clearQuote); conditionLabel.appendChild(condition);
+          row.appendChild(description); row.appendChild(qtyLabel); row.appendChild(conditionLabel); target.appendChild(row);
+        });
+      }
+      $('returnsMode').addEventListener('change', () => {
+        $('returnsReplacementSection').hidden = $('returnsMode').value !== 'Exchange'; clearQuote();
+      });
+      $('returnsReason').addEventListener('input', clearQuote);
+      $('returnsAddReplacement').addEventListener('click', () => {
+        const product = products.find(x => x.id === Number($('returnsProduct').value));
+        const qty = Number($('returnsReplacementQty').value); const tier = $('returnsReplacementTier').value;
+        if (!product || !Number.isSafeInteger(qty) || qty < 1 || qty > 1000000) { showError('Select a product and a whole-number quantity from 1 to 1,000,000.'); return; }
+        const existing = ui.replacements.find(x => x.product_id === product.id && x.tier === tier);
+        if (existing && existing.qty + qty > 1000000) { showError('Replacement quantity exceeds the limit.'); return; }
+        if (existing) existing.qty += qty; else ui.replacements.push({ product_id: product.id, qty, tier });
+        clearQuote(); renderReplacements(); showError('');
+      });
+      function renderReplacements() {
+        const target = $('returnsReplacementItems'); target.replaceChildren();
+        ui.replacements.forEach((item, index) => {
+          const p = products.find(x => x.id === item.product_id);
+          const row = document.createElement('div'); row.className = 'return-replacement-row';
+          const text = document.createElement('span'); const pack = item.tier === 'Wholesale' ? p.wholesale_pack_size : 1;
+          text.textContent = `${p.name} · ${item.qty} ${item.tier === 'Wholesale' ? 'pack(s)' : 'unit(s)'} · ${item.qty * pack} base units · ${item.tier}`;
+          row.appendChild(text); row.appendChild(button('Remove', () => { ui.replacements.splice(index, 1); clearQuote(); renderReplacements(); })); target.appendChild(row);
+        });
+      }
+      function requestBody() {
+        if (!ui.receipt) throw new Error('Find a receipt first.');
+        const return_items = [];
+        $('returnsOriginalItems').querySelectorAll('.return-item-row').forEach(row => {
+          const input = row.querySelector('.return-qty'); const qty = Number(input.value);
+          if (!Number.isSafeInteger(qty) || qty < 0 || qty > Number(input.max)) throw new Error('Return quantities must be whole numbers up to the available quantity.');
+          if (qty > 0) return_items.push({ sale_item_id: row.dataset.itemId, base_qty: qty, restock: row.querySelector('.return-condition').value === 'sellable' });
+        });
+        if (!return_items.length) throw new Error('Select at least one unit to return.');
+        const reason = $('returnsReason').value.trim(); if (!reason || reason.length > 500) throw new Error('Enter a reason of up to 500 characters.');
+        const mode = $('returnsMode').value;
+        if (mode === 'Exchange' && !ui.replacements.length) throw new Error('Add at least one replacement product.');
+        return { request_id: crypto.randomUUID(), original_sale_id: ui.receipt.sale.id, mode, reason,
+          return_items, exchange_items: mode === 'Exchange' ? ui.replacements.map(x => ({ ...x })) : [] };
+      }
+      $('returnsPreview').addEventListener('click', async () => {
+        if (ui.busy || ui.pending) return;
+        busy(true); showError(''); ui.quote = null; $('returnsSettlement').hidden = true;
+        try {
+          const body = requestBody(); const preview = await post('/api/returns/preview', body);
+          ui.quote = { body, settlement: preview.settlement }; summary(preview.settlement);
+          showError('Preview only: no return, cash settlement, or stock changes have been saved.');
+        } catch (error) { showError(error.message); }
+        finally { busy(false); }
+      });
+      $('returnsEdit').addEventListener('click', () => { clearQuote(); showError('Edit the selections, then preview again.'); });
+      $('returnsConfirm').addEventListener('click', async () => {
+        if (ui.busy) return;
+        if (ui.pending?.invalid) { showError('Resolve the saved request before continuing.'); return; }
+        const body = ui.pending || (ui.quote ? { ...ui.quote.body, expected_settlement: ui.quote.settlement } : null);
+        if (!body) return;
+        const v = body.expected_settlement;
+        if (!confirm(`Record this return?\nCollect cash: ${cash(v.cash_received, v.currency)}\nPay cash back: ${cash(v.cash_refunded, v.currency)}\nReduce debt: ${cash(v.credit_applied, v.currency)}\n\nA recovery retry must not cause a second physical cash payment.`)) return;
+        const key = pendingKey(); writeSession(key, JSON.stringify(body)); ui.pending = body; busy(true); showError('Recording return…');
+        let result;
+        try { result = await post('/api/returns', body); }
+        catch (error) {
+          if (error.status === 400 || error.code === 'SETTLEMENT_CHANGED') {
+            writeSession(key, null); ui.pending = null; ui.quote = null; $('returnsSettlement').hidden = true;
+          }
+          showError(`${error.message}${ui.pending ? ' Use Recover earlier return to retry the same request.' : ' Reload the receipt and preview again.'}`);
+          if (ui.pending) $('returnsConfirm').textContent = 'Recover earlier return';
+          busy(false); return;
+        }
+        writeSession(key, null); ui.pending = null; ui.quote = null; ui.receipt = null;
+        const r = result.return; summary(r);
+        $('returnsOriginalItems').replaceChildren(); $('returnsReplacementItems').replaceChildren(); ui.replacements = [];
+        $('returnsReceiptInfo').textContent = `Saved return ${r.return_no}`;
+        showError(`${result.replayed ? 'Recovered existing' : 'Saved'} return ${r.return_no}. Collect ${cash(r.cash_received, r.currency)}; refund ${cash(r.cash_refunded, r.currency)}; debt reduced ${cash(r.credit_applied, r.currency)}. Cash is recorded only; no bank transfer is performed.`);
+        try { await syncFromBackend(); } catch (error) { showToast(`Return saved. Refresh failed: ${error.message}`); }
+        busy(false);
+      });
+      $('returnsClose').addEventListener('click', () => $('returnsDialog').close());
+      $('returnsDialog').addEventListener('cancel', e => { if (ui.busy) e.preventDefault(); });
+    })();
+
+    /* Admin stock operations; all changes are written by /api/stock/adjust. */
+    (() => {
+      const $ = id => document.getElementById(id);
+      const state = { busy: false, pending: null };
+      const key = () => `pos_pending_stock_${currentUser.id}`;
+      const message = text => { $('stockMessage').textContent = text; };
+      const selected = () => products.find(p => p.id === Number($('stockProduct').value));
+      function setBusy(value) {
+        state.busy = value;
+        $('stockFields').disabled = value || !!state.pending;
+        $('stockSave').disabled = value || !!state.pending?.invalid;
+        $('stockReload').disabled = value || !!state.pending;
+        $('stockClose').disabled = value;
+      }
+      function preview() {
+        const product = selected();
+        if (!product) { $('stockEstimate').textContent = 'Select a product to see its current stock.'; return; }
+        const delta = Number($('stockChange').value);
+        const valid = Number.isSafeInteger(delta) && delta !== 0;
+        const estimate = valid ? product.stock + delta : null;
+        $('stockEstimate').textContent = `${product.name} · Current stock: ${product.stock} base units${estimate !== null ? ` · Estimated stock after change: ${estimate}` : ''}. The backend applies the change to the latest stock when saved.`;
+      }
+      function renderProducts(productId = '') {
+        $('stockProduct').replaceChildren(new Option('Select an active product', ''));
+        products.forEach(p => $('stockProduct').add(new Option(`${p.name} · ${p.stock} base units`, p.id)));
+        $('stockProduct').value = String(productId);
+        preview();
+      }
+      function renderPending() {
+        const body = state.pending;
+        if (!body || body.invalid) return;
+        const product = products.find(p => p.id === body.product_id);
+        $('stockProduct').value = String(body.product_id);
+        $('stockOperation').value = body.movement_type;
+        $('stockChange').value = String(body.quantity_change);
+        $('stockReason').value = body.reason;
+        $('stockEstimate').textContent = `Unconfirmed request: ${product?.name || 'Product ' + body.product_id} · ${body.quantity_change > 0 ? '+' : ''}${body.quantity_change} base units · ${body.movement_type}.`;
+        $('stockSave').textContent = 'Recover earlier stock change';
+        message('The previous result is unknown. Recover the same request below rather than recording the change again.');
+      }
+      async function history() {
+        const productId = Number($('stockProduct').value);
+        const url = productId ? `/api/stock/movements?product_id=${productId}` : '/api/stock/movements';
+        const rows = await api(url);
+        const tbody = $('stockHistoryBody'); tbody.replaceChildren();
+        if (!rows.length) {
+          const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 6; td.textContent = 'No stock movements recorded for this selection.'; tr.appendChild(td); tbody.appendChild(tr); return;
+        }
+        rows.forEach(row => {
+          const product = products.find(p => p.id === row.product_id);
+          const staff = staffList.find(p => p.id === row.performed_by);
+          const tr = document.createElement('tr');
+          const values = [
+            new Date(row.created_at).toLocaleString('en-PK', { timeZone: 'Asia/Karachi' }),
+            product?.name || `Product ${row.product_id}`, row.movement_type,
+            `${row.quantity_change > 0 ? '+' : ''}${row.quantity_change}`,
+            row.stock_after, `${row.reason}${staff ? ' · ' + staff.name : ''}`
+          ];
+          values.forEach(value => { const td = document.createElement('td'); td.textContent = String(value ?? ''); tr.appendChild(td); });
+          tbody.appendChild(tr);
+        });
+      }
+      $('btnOpenStock').addEventListener('click', async () => {
+        if (currentUser.role !== 'Admin') { showToast('Admin access required'); return; }
+        state.pending = null; message(''); $('stockSave').textContent = 'Record stock change';
+        $('stockOperation').value = 'Restock'; $('stockChange').value = ''; $('stockReason').value = '';
+        $('stockHistoryBody').replaceChildren(); $('stockDialog').showModal(); setBusy(true);
+        try {
+          await syncFromBackend(); renderProducts();
+          const stored = readSession(key());
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              if (!parsed.request_id || !Number.isInteger(parsed.product_id) || !Number.isInteger(parsed.quantity_change)) throw new Error('Invalid request');
+              state.pending = parsed; renderPending();
+            } catch { state.pending = { invalid: true }; message('The saved request is unreadable. Reconcile its movement before creating another stock change.'); }
+          }
+          await history();
+        } catch (error) { message(error.message); }
+        finally { setBusy(false); }
+      });
+      $('stockProduct').addEventListener('change', async () => {
+        if (state.busy || state.pending) return;
+        preview(); setBusy(true); message('');
+        try { await history(); } catch (error) { message(error.message); }
+        finally { setBusy(false); }
+      });
+      $('stockOperation').addEventListener('change', () => {
+        $('stockChange').min = $('stockOperation').value === 'Restock' ? '1' : '-2147483647'; preview();
+      });
+      $('stockChange').addEventListener('input', preview);
+      $('stockReload').addEventListener('click', async () => {
+        if (state.busy || state.pending) return;
+        const id = $('stockProduct').value; setBusy(true); message('');
+        try { await syncFromBackend(); renderProducts(id); await history(); }
+        catch (error) { message(error.message); }
+        finally { setBusy(false); }
+      });
+      $('stockSave').addEventListener('click', async () => {
+        if (state.busy || state.pending?.invalid) return;
+        let body = state.pending;
+        if (!body) {
+          const product = selected(); const delta = Number($('stockChange').value);
+          const operation = $('stockOperation').value; const reason = $('stockReason').value.trim();
+          if (!product) { message('Select a product.'); return; }
+          if (!Number.isSafeInteger(delta) || delta === 0 || Math.abs(delta) > 2147483647) { message('Enter a non-zero whole-number quantity change.'); return; }
+          if (operation === 'Restock' && delta < 0) { message('Restock quantities must be positive.'); return; }
+          if (!reason || reason.length > 500) { message('Enter a reason of up to 500 characters.'); return; }
+          body = { request_id: crypto.randomUUID(), product_id: product.id, movement_type: operation, quantity_change: delta, reason };
+        }
+        const name = products.find(p => p.id === body.product_id)?.name || `Product ${body.product_id}`;
+        if (!confirm(`${state.pending ? 'Recover the original request' : 'Record this stock change'}?\n${name}\n${body.movement_type}: ${body.quantity_change > 0 ? '+' : ''}${body.quantity_change} base units\nReason: ${body.reason}`)) return;
+        const sessionKey = key(); writeSession(sessionKey, JSON.stringify(body)); state.pending = body; setBusy(true); message('Saving stock change…');
+        let result;
+        try { result = await post('/api/stock/adjust', body); }
+        catch (error) {
+          if ([400, 404].includes(error.status)) { writeSession(sessionKey, null); state.pending = null; }
+          message(`${error.message}${state.pending ? ' Recover the earlier request to retry safely.' : ''}`);
+          if (state.pending) $('stockSave').textContent = 'Recover earlier stock change';
+          setBusy(false); return;
+        }
+        writeSession(sessionKey, null); state.pending = null;
+        $('stockSave').textContent = 'Record stock change'; $('stockChange').value = ''; $('stockReason').value = '';
+        const movement = result.movement;
+        message(`${result.replayed ? 'Recovered existing' : 'Saved'} movement ${movement.id}. Change: ${movement.quantity_change > 0 ? '+' : ''}${movement.quantity_change}; stock after this movement: ${movement.stock_after}.`);
+        try { await syncFromBackend(); renderProducts(body.product_id); await history(); }
+        catch (error) { showToast(`Stock change saved. Refresh failed: ${error.message}`); }
+        finally { setBusy(false); }
+      });
+      $('stockClose').addEventListener('click', () => $('stockDialog').close());
+      $('stockDialog').addEventListener('cancel', e => { if (state.busy) e.preventDefault(); });
+    })();
+
+  </script>
+<nav class="mobile-tabs" aria-label="POS screens">
+<button type="button" id="mobileProductsTab" aria-pressed="true">Products</button>
+<button type="button" id="mobileBillTab" aria-pressed="false">Bill<span id="mobileBillSummary"></span></button>
+</nav>
+<script>
+(function () {
+ const menu = document.getElementById('mobileMenuButton');
+ const products = document.getElementById('mobileProductsTab');
+ const bill = document.getElementById('mobileBillTab');
+ const search = document.getElementById('searchInput');
+ if (matchMedia('(max-width:760px)').matches) { search.removeAttribute('autofocus'); search.blur(); }
+ function closeMenu() { document.body.classList.remove('mobile-menu-open'); menu.setAttribute('aria-expanded','false'); }
+ function showBill(open) {
+  document.body.classList.toggle('mobile-bill-open', open);
+  products.setAttribute('aria-pressed',String(!open)); bill.setAttribute('aria-pressed',String(open)); closeMenu();
+ }
+ menu.addEventListener('click',function () { const open = document.body.classList.toggle('mobile-menu-open'); menu.setAttribute('aria-expanded',String(open)); });
+ document.getElementById('mobileMenuActions').addEventListener('click',e=>{ if(e.target.closest('button')) closeMenu(); });
+ products.addEventListener('click',()=>showBill(false)); bill.addEventListener('click',()=>showBill(true));
+ function updateSummary() { document.getElementById('mobileBillSummary').textContent = document.getElementById('cartBadgeCount').textContent + ' · ' + document.getElementById('summaryTotal').textContent; }
+ const observer=new MutationObserver(updateSummary);
+ ['cartBadgeCount','summaryTotal'].forEach(id=>observer.observe(document.getElementById(id),{childList:true,subtree:true,characterData:true})); updateSummary();
+ document.getElementById('btnSwitchUser').addEventListener('click',()=>showBill(false));
+})();
+</script>
+</body>
+</html>
