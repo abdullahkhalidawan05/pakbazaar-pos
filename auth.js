@@ -1,73 +1,33 @@
-const express = require('express');
-const { createClient } = require('@supabase/supabase-js');
-const { rateLimit } = require('express-rate-limit');
-const { requireAuth, requireRole } = require('../middleware/auth');
 const supabase = require('../supabase');
 
-const router = express.Router();
+async function requireAuth(req, res, next) {
+  const authorization = req.get('Authorization') || '';
+  const match = authorization.match(/^Bearer\s+(\S+)$/i);
 
-if (!process.env.SUPABASE_PUBLISHABLE_KEY) {
-  throw new Error('Missing SUPABASE_PUBLISHABLE_KEY in .env');
-}
-
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 10,
-  standardHeaders: 'draft-8',
-  legacyHeaders: false,
-  message: {
-    error: 'Too many login attempts. Try again in 15 minutes.'
-  }
-});
-
-router.post('/login', loginLimiter, async (req, res) => {
-  res.set('Cache-Control', 'no-store');
-
-  const { email, password } = req.body || {};
-
-  if (
-    typeof email !== 'string' ||
-    typeof password !== 'string' ||
-    !email.trim() ||
-    !password ||
-    email.length > 254 ||
-    password.length > 1024
-  ) {
-    return res.status(400).json({
-      error: 'A valid email and password are required'
+  if (!match) {
+    return res.status(401).json({
+      error: 'Please log in to continue'
     });
   }
 
   try {
-    // A separate client for each login prevents shared user sessions.
-    const authClient = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_PUBLISHABLE_KEY,
-      {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false
-        }
-      }
-    );
+    const token = match[1];
 
-    const { data, error } =
-      await authClient.auth.signInWithPassword({
-        email: email.trim(),
-        password
-      });
+    const {
+      data: { user },
+      error: authError
+    } = await supabase.auth.getUser(token);
 
-    if (error || !data.user || !data.session) {
+    if (authError || !user) {
       return res.status(401).json({
-        error: 'Invalid email or password'
+        error: 'Invalid or expired login. Please log in again.'
       });
     }
 
     const { data: profile, error: profileError } = await supabase
       .from('staff_profiles')
       .select('id, name, role, is_active')
-      .eq('id', data.user.id)
+      .eq('id', user.id)
       .maybeSingle();
 
     if (profileError) {
@@ -76,47 +36,42 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     if (!profile || !profile.is_active) {
       return res.status(403).json({
-        error: 'Staff access is not enabled for this account'
+        error: 'Your staff account does not have access'
       });
     }
 
-    return res.json({
-      message: 'Login successful',
-      access_token: data.session.access_token,
-      expires_at: data.session.expires_at,
-      user: {
-        id: profile.id,
-        name: profile.name,
-        role: profile.role
-      }
-    });
+    req.user = {
+      id: profile.id,
+      name: profile.name,
+      role: profile.role
+    };
+
+    next();
   } catch (error) {
-    console.error('Login failed:', error.message);
+    console.error('Authentication check failed:', error.message);
 
-    return res.status(500).json({
-      error: 'Unable to complete login'
+    return res.status(503).json({
+      error: 'Unable to verify access. Try again shortly.'
     });
   }
-});
+}
 
-module.exports = router;
-router.get('/me', requireAuth, (req, res) => {
-  res.set('Cache-Control', 'no-store');
+function requireRole(...allowedRoles) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        error: 'Please log in to continue'
+      });
+    }
 
-  res.json({
-    user: req.user
-  });
-});
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        error: 'You do not have permission for this action'
+      });
+    }
 
-router.get(
-  '/admin-check',
-  requireAuth,
-  requireRole('Admin'),
-  (req, res) => {
-    res.set('Cache-Control', 'no-store');
+    next();
+  };
+}
 
-    res.json({
-      message: 'Admin access confirmed'
-    });
-  }
-);
+module.exports = { requireAuth, requireRole };
