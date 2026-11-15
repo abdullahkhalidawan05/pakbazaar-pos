@@ -63,7 +63,7 @@ async function saveProductImage(req, res) {
   let imageLinked = false;
 
   try {
-    const { data: product, error: productError } = await supabase
+    const { data: product, error: productError } = await req.db
       .from('products')
       .select('id')
       .eq('id', productId)
@@ -123,7 +123,7 @@ async function saveProductImage(req, res) {
       });
     }
 
-    const path = `${productId}/${randomUUID()}.webp`;
+    const path = `${req.user.shop_id}/${productId}/${randomUUID()}.webp`;
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
@@ -143,7 +143,7 @@ async function saveProductImage(req, res) {
       .getPublicUrl(path);
 
     const { data: updatedProduct, error: updateError } =
-      await supabase
+      await req.db
         .from('products')
         .update({ image: urlData.publicUrl })
         .eq('id', productId)

@@ -1,6 +1,5 @@
 const express = require('express');
 const { z } = require('zod');
-const supabase = require('../supabase');
 const {
   requireAuth,
   requireRole
@@ -45,7 +44,7 @@ function databaseError(res, error) {
 // Active staff can read settings.
 router.get('/', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await req.db
       .from('store_settings')
       .select('*')
       .eq('id', 1)
@@ -82,7 +81,7 @@ router.patch('/', requireRole('Admin'), async (req, res) => {
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await req.db
       .from('store_settings')
       .update({
         ...result.data,

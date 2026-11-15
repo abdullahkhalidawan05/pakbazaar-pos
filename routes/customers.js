@@ -1,6 +1,5 @@
 const express = require('express');
 const { z } = require('zod');
-const supabase = require('../supabase');
 
 const {
   requireAuth,
@@ -67,7 +66,7 @@ router.get('/', async (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await req.db
       .from('customers')
       .select('*')
       .eq('is_active', true)
@@ -89,7 +88,7 @@ router.post(
   validateBody(createSchema),
   async (req, res) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await req.db
         .from('customers')
         .insert(req.customerData)
         .select()
@@ -125,7 +124,7 @@ router.patch(
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await req.db
         .from('customers')
         .update(req.customerData)
         .eq('id', id)

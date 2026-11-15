@@ -2,7 +2,7 @@ const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const { rateLimit } = require('express-rate-limit');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const supabase = require('../supabase');
+const createUserClient = require('../user-client');
 
 const router = express.Router();
 
@@ -64,9 +64,10 @@ router.post('/login', loginLimiter, async (req, res) => {
       });
     }
 
-    const { data: profile, error: profileError } = await supabase
+    const shopClient = createUserClient(data.session.access_token);
+    const { data: profile, error: profileError } = await shopClient
       .from('staff_profiles')
-      .select('id, name, role, is_active')
+      .select('id, name, role, is_active, shop_id')
       .eq('id', data.user.id)
       .maybeSingle();
 
@@ -74,9 +75,9 @@ router.post('/login', loginLimiter, async (req, res) => {
       throw profileError;
     }
 
-    if (!profile || !profile.is_active) {
+    if (!profile || !profile.is_active || profile.role !== 'Admin' || !profile.shop_id) {
       return res.status(403).json({
-        error: 'Staff access is not enabled for this account'
+        error: 'This account does not have an active shop. Contact the system owner.'
       });
     }
 
@@ -87,7 +88,8 @@ router.post('/login', loginLimiter, async (req, res) => {
       user: {
         id: profile.id,
         name: profile.name,
-        role: profile.role
+        role: profile.role,
+        shop_id: profile.shop_id
       }
     });
   } catch (error) {

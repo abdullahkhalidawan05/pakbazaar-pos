@@ -1,6 +1,5 @@
 const express = require('express');
 const { z } = require('zod');
-const supabase = require('../supabase');
 
 const {
   requireAuth,
@@ -77,7 +76,7 @@ router.get('/summary', async (req, res) => {
   }
 
   try {
-    const { data, error } = await supabase.rpc('get_pos_report', {
+    const { data, error } = await req.db.rpc('get_pos_report', {
       p_staff_id: req.user.id,
       p_from_date: from,
       p_to_date: to

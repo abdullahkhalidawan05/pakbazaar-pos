@@ -1,6 +1,5 @@
 const express = require('express');
 const { z } = require('zod');
-const supabase = require('../supabase');
 
 const {
   requireAuth,
@@ -46,6 +45,8 @@ function handleError(res, error) {
     message: error.message,
     details: error.details
   });
+
+  if (error.code === '42501') return res.status(403).json({ error: 'Shop access denied' });
 
   if (error.code === 'P0001') {
     let status = 400;
@@ -94,7 +95,7 @@ router.post('/adjust', async (req, res) => {
   try {
     const input = result.data;
 
-    const { data, error } = await supabase.rpc('adjust_stock', {
+    const { data, error } = await req.db.rpc('adjust_stock', {
       p_request_id: input.request_id,
       p_staff_id: req.user.id,
       p_product_id: input.product_id,
@@ -120,7 +121,7 @@ router.post('/adjust', async (req, res) => {
 // Latest 100 stock movements, optionally filtered by product.
 router.get('/movements', async (req, res) => {
   try {
-    let query = supabase
+    let query = req.db
       .from('stock_movements')
       .select(
         'id, product_id, sale_id, return_id, movement_type, ' +

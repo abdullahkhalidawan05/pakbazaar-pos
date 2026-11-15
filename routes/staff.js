@@ -1,6 +1,5 @@
 const express = require('express');
 const { z } = require('zod');
-const supabase = require('../supabase');
 
 const {
   requireAuth,
@@ -36,7 +35,7 @@ router.get('/', async (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await req.db
       .from('staff_profiles')
       .select(staffColumns)
       .order('name', { ascending: true });
@@ -78,8 +77,10 @@ router.patch('/:id', async (req, res) => {
     'is_active'
   );
 
+  if (changesStatus) return res.status(400).json({ error: 'Each shop has one admin login. Account status is managed by the system owner.' });
+
   try {
-    let query = supabase
+    let query = req.db
       .from('staff_profiles')
       .update(result.data)
       .eq('id', parsedId.data);

@@ -1,6 +1,5 @@
 const express = require('express');
 const { z } = require('zod');
-const supabase = require('../supabase');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -113,6 +112,8 @@ function handleError(res, error) {
     });
   }
 
+  if (error.code === '42501') return res.status(403).json({ error: 'Shop access denied' });
+
   if (error.code === 'P0001') {
     let status = 400;
 
@@ -158,7 +159,7 @@ router.post('/', async (req, res) => {
   try {
     const sale = result.data;
 
-    const { data, error } = await supabase.rpc('checkout_sale', {
+    const { data, error } = await req.db.rpc('checkout_sale', {
       p_request_id: sale.request_id,
       p_cashier_id: req.user.id,
       p_sale_type: sale.sale_type,
@@ -184,7 +185,7 @@ router.post('/', async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    let query = supabase
+    let query = req.db
       .from('sales')
       .select(saleColumns)
       .order('created_at', { ascending: false })
@@ -216,9 +217,9 @@ router.get('/:id', async (req, res) => {
   }
 
   try {
-    let query = supabase
+    let query = req.db
       .from('sales')
-      .select(`${saleColumns},sale_items(*)`)
+      .select(`${saleColumns},sale_items!sale_items_sale_id_shop_fk(*)`)
       .eq('id', parsedId.data);
 
     if (req.user.role !== 'Admin') {

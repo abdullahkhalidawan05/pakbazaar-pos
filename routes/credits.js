@@ -1,6 +1,5 @@
 const express = require('express');
 const { z } = require('zod');
-const supabase = require('../supabase');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -48,6 +47,8 @@ function handleError(res, error) {
     details: error.details
   });
 
+  if (error.code === '42501') return res.status(403).json({ error: 'Shop access denied' });
+
   if (error.code === 'P0001') {
     let status = 400;
 
@@ -94,7 +95,7 @@ router.get('/', async (req, res) => {
   const offset = Number(rawOffset);
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await req.db
       .from('customer_credit_accounts')
       .select('*')
       .order('customer_id', { ascending: true })
@@ -114,7 +115,7 @@ router.get('/', async (req, res) => {
 // Latest 100 credit sales, repayments, and return adjustments.
 router.get('/:id/transactions', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await req.db
       .from('credit_transactions')
       .select(
         'id, customer_id, sale_id, return_id, entry_type, currency, ' +
@@ -153,7 +154,7 @@ router.post('/:id/pay', async (req, res) => {
   try {
     const input = result.data;
 
-    const { data, error } = await supabase.rpc(
+    const { data, error } = await req.db.rpc(
       'record_credit_payment',
       {
         p_request_id: input.request_id,

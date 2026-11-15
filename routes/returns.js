@@ -1,6 +1,5 @@
 const express = require('express');
 const { z } = require('zod');
-const supabase = require('../supabase');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const router = express.Router();
 router.use(requireAuth, requireRole('Admin'));
@@ -50,6 +49,8 @@ const confirmSchema = addRules(fields.extend({ expected_settlement: settlementSc
 function fail(res, error) {
   console.error('Return operation failed:', { code: error.code, message: error.message, details: error.details });
   if (error.code === 'PGRST202') return res.status(503).json({ error: 'Return function unavailable. Run the supplied SQL and previous return setup.' });
+  if (error.code === '42501') return res.status(403).json({ error: 'Shop access denied' });
+
   if (error.code === 'P0001') {
     if (error.message === 'SETTLEMENT_CHANGED') return res.status(409).json({ code: 'SETTLEMENT_CHANGED', error: 'Settlement changed. Review a fresh preview before confirming.' });
     const status = error.message === 'Admin access required' ? 403 :
@@ -64,10 +65,10 @@ router.get('/receipt/:receiptNo', async (req, res) => {
   const receiptNo = req.params.receiptNo.trim();
   if (!receiptNo || receiptNo.length > 100) return res.status(400).json({ error: 'Invalid receipt number' });
   try {
-    const { data: sale, error } = await supabase.from('sales').select(saleColumns).eq('receipt_no', receiptNo).maybeSingle();
+    const { data: sale, error } = await req.db.from('sales').select(saleColumns).eq('receipt_no', receiptNo).maybeSingle();
     if (error) return fail(res, error);
     if (!sale) return res.status(404).json({ error: 'Receipt not found' });
-    const { data: items, error: itemError } = await supabase.from('returnable_sale_items').select('*').eq('sale_id', sale.id).order('product_name');
+    const { data: items, error: itemError } = await req.db.from('returnable_sale_items').select('*').eq('sale_id', sale.id).order('product_name');
     if (itemError) return fail(res, itemError);
     return res.json({ sale, items });
   } catch (error) { return fail(res, error); }
@@ -87,7 +88,7 @@ function processRequest(isPreview) {
         p_exchange_items: input.exchange_items
       };
       if (!isPreview) args.p_expected_settlement = input.expected_settlement;
-      const { data, error } = await supabase.rpc(isPreview ? 'preview_return' : 'confirm_return', args);
+      const { data, error } = await req.db.rpc(isPreview ? 'preview_return' : 'confirm_return', args);
       if (error) return fail(res, error);
       if (!data?.return) throw new Error('Return function produced no result');
       if (isPreview) {

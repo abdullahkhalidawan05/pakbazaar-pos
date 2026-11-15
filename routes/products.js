@@ -1,6 +1,5 @@
 const express = require('express');
 const { z } = require('zod');
-const supabase = require('../supabase');
 const {
   requireAuth,
   requireRole
@@ -100,7 +99,7 @@ function handleDatabaseError(res, error) {
 
 router.get('/', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await req.db
       .from('products')
       .select('*')
       .eq('is_active', true)
@@ -122,7 +121,7 @@ router.post(
   validateBody(createSchema),
   async (req, res) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await req.db
         .from('products')
         .insert(req.productData)
         .select()
@@ -146,7 +145,7 @@ router.patch(
   validateBody(editSchema),
   async (req, res) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await req.db
         .from('products')
         .update(req.productData)
         .eq('id', req.productId)
@@ -176,7 +175,7 @@ router.delete(
   validateId,
   async (req, res) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await req.db
         .from('products')
         .update({ is_active: false })
         .eq('id', req.productId)
