@@ -1812,6 +1812,11 @@
  #changePasswordSubmit { width:fit-content; }
 }
 @media screen and (max-width:760px) { .password-panel { padding:15px; } #changePasswordSubmit { width:100%; } }
+@media screen {
+ .fast-view-status { display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 12px;margin-bottom:12px;background:#f1f6e9;border:1px solid #dfe8d4;border-radius:9px;color:#6b805b;font-size:11px;line-height:1.6; }
+ .fast-refresh { min-height:34px;font-size:10px;padding:6px 10px; }
+ .fast-view-status.is-error { background:#fff1ee;border-color:#f0d5cd;color:#a95847; }
+}
 </style>
 </head>
 <body class="mode-retail">
@@ -2482,6 +2487,7 @@
     function logout() {
       document.getElementById('returnsDialog')?.close();
       document.getElementById('stockDialog')?.close();
+      invalidateApiCache();Object.keys(resourceSignatures).forEach(key=>delete resourceSignatures[key]);
       authToken=''; writeSession('pos_access_token',null);
       currentUser={name:'Not signed in',role:'Guest',id:null};
       products=[]; staffList=[]; creditRecords=[]; customers=[]; salesHistory=[]; cart.clear();
@@ -2489,9 +2495,10 @@
       document.getElementById('loginOverlay').style.display='grid';
       updateActiveUserUI(); renderProducts(); renderCart();
     }
-    async function api(url, options={}) {
+    async function fetchApi(url, options={}) {
+      const requestToken=authToken;
       const headers = new Headers(options.headers || {});
-      if(authToken) headers.set('Authorization', `Bearer ${authToken}`);
+      if(requestToken) headers.set('Authorization', `Bearer ${requestToken}`);
       if(options.body && !(options.body instanceof FormData)) headers.set('Content-Type','application/json');
       let response;
       try { response=await fetch(url,{...options,headers,cache:'no-store'}); }
@@ -2499,12 +2506,59 @@
       const raw=await response.text(); let data;
       try { data=JSON.parse(raw); } catch { throw new Error('API returned HTML or invalid JSON. Open this page through http://127.0.0.1:3000.'); }
       if(!response.ok) {
-        if(response.status===401 && url!=='/api/auth/login') logout();
+        if(response.status===401 && url!=='/api/auth/login' && requestToken===authToken) logout();
         const detail=data.details?.map(x=>`${x.field}: ${x.message}`).join('; ');
         const error=new Error(detail || data.error || `Request failed (${response.status})`); error.status=response.status; error.code=data.code; throw error;
       }
+      if(requestToken!==authToken && url!=='/api/auth/login'){const error=new Error('Session changed. Please reopen this screen.');error.code='SESSION_CHANGED';throw error;}
       return data;
     }
+    // Read-only, token-scoped memory cache. Never cache writes or persist shop data.
+    const apiReadCache=new Map(), apiReadsInFlight=new Map();let apiEpoch=0;
+    function invalidateApiCache(){apiEpoch++;apiReadCache.clear();apiReadsInFlight.clear();}
+    function readTtl(url){
+      if(url==='/api/products'||url==='/api/customers'||url==='/api/staff')return 10000;
+      if(url==='/api/settings')return 20000;
+      if(url==='/api/sales'||url.startsWith('/api/credits?')||url.startsWith('/api/reports/summary'))return 5000;
+      if(url.startsWith('/api/stock/movements'))return 3000;
+      return 0;
+    }
+    const copyApiData=data=>JSON.parse(JSON.stringify(data));
+    async function api(url,options={}){
+      const method=(options.method||'GET').toUpperCase();
+      if(method!=='GET'){
+        invalidateApiCache();try{return await fetchApi(url,options);}finally{invalidateApiCache();}
+      }
+      const ttl=readTtl(url);if(!ttl)return fetchApi(url,options);
+      const token=authToken,epoch=apiEpoch,key=epoch+':'+token+':'+url;
+      const cached=apiReadCache.get(key);
+      if(cached&&cached.until>Date.now())return copyApiData(cached.data);
+      let pending=apiReadsInFlight.get(key);
+      if(!pending){
+        pending=fetchApi(url,options).then(data=>{
+          if(authToken===token&&apiEpoch===epoch){
+            for(const [old,entry] of apiReadCache)if(entry.until<=Date.now())apiReadCache.delete(old);
+            if(apiReadCache.size>=80)apiReadCache.delete(apiReadCache.keys().next().value);
+            apiReadCache.set(key,{data,until:Date.now()+ttl});
+          }
+          return data;
+        }).finally(()=>apiReadsInFlight.delete(key));
+        apiReadsInFlight.set(key,pending);
+      }
+      return copyApiData(await pending);
+    }
+    const viewLoads=new Map();
+    function viewStatus(id,text,isError=false){
+      const root=document.getElementById(id);if(!root)return;
+      let status=root.querySelector('.fast-view-status');
+      if(!status){status=document.createElement('div');status.className='fast-view-status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');(root.querySelector('.modal-content,.returns-content')||root).prepend(status);}
+      status.replaceChildren();
+      const label=document.createElement('span');label.textContent=text;status.appendChild(label);
+      const refreshButton={salesModal:'btnOpenSales',creditModal:'btnOpenCredit'}[id];
+      if(refreshButton){const refresh=document.createElement('button');refresh.type='button';refresh.className='btn-nav fast-refresh';refresh.textContent='Refresh';refresh.addEventListener('click',()=>{invalidateApiCache();document.getElementById(refreshButton).click();});status.appendChild(refresh);}
+      status.classList.toggle('is-error',isError);status.hidden=!text;
+    }
+
     function post(url, body, method='POST') { return api(url,{method,body:JSON.stringify(body)}); }
     function normalSale(sale, items=[]) {
       const date=new Date(sale.created_at);
@@ -2572,20 +2626,40 @@
       document.getElementById('backendStatusPill').className='backend-status-pill'+(isBackendOnline?' online':'');
       document.getElementById('backendStatusText').textContent=isBackendOnline?'Database connected':'Backend unavailable';
     }
-    async function syncFromBackend() {
-      if(!authToken) return;
-      const [prods,settings,credits,sales,custs,staff] = await Promise.all([
-        api('/api/products'),api('/api/settings'),allCredits(),api('/api/sales'),api('/api/customers'),
-        currentUser.role==='Admin'?api('/api/staff'):Promise.resolve([])
-      ]);
-      products=prods.map(p=>({...p,cat:p.category,stock:Number(p.stock),retail_price:Number(p.retail_price),wholesale_price:Number(p.wholesale_price)}));
-      storeSettings={storeName:settings.store_name,tagline:settings.tagline||'',branch:settings.branch||'',address:settings.address||'',phone:settings.phone||'',taxId:settings.tax_id||'',currency:settings.currency,taxRate:Number(settings.tax_rate),receiptWidth:settings.receipt_width,receiptTemplate:settings.receipt_template||'Classic',receiptFont:settings.receipt_font||'Mono',receiptFontSize:Number(settings.receipt_font_size||11),receiptHeaderAlign:settings.receipt_header_align||'center',receiptShowAddress:settings.receipt_show_address!==false,receiptShowPhone:settings.receipt_show_phone!==false,receiptShowItemDates:settings.receipt_show_item_dates===true,icon:settings.icon||'🛒',footer:settings.footer||''};
-      creditRecords=credits.map(c=>({...c,id:c.customer_id,balance:Number(c.balance)}));
-      salesHistory=sales.map(x=>normalSale(x)); customers=custs; staffList=staff;
-      const select=document.getElementById('creditCustomerId');
-      select.replaceChildren(new Option('Select existing customer',''));
-      customers.forEach(c=>select.add(new Option(`${c.name} ${c.phone||''}`,c.id)));
-      applyStoreBranding(); updateActiveUserUI(); renderCategories(); renderProducts(); renderCart();
+    const resourceVersions={},resourceSignatures={};
+    async function syncFromBackend(parts=['products','settings','credits','sales','customers','staff'],force=false) {
+      if(!authToken)return false;
+      if(force)invalidateApiCache();
+      const token=authToken,epoch=apiEpoch;
+      const loaders={products:()=>api('/api/products'),settings:()=>api('/api/settings'),credits:()=>allCredits(),sales:()=>api('/api/sales'),customers:()=>api('/api/customers'),staff:()=>currentUser.role==='Admin'?api('/api/staff'):Promise.resolve([])};
+      const names=[...new Set(parts)],versions={};
+      names.forEach(name=>{versions[name]=resourceVersions[name]=(resourceVersions[name]||0)+1;});
+      const results=await Promise.all(names.map(async name=>[name,await loaders[name]()]));
+      if(authToken!==token||apiEpoch!==epoch)return false;
+      const applied=new Set();
+      for(const [name,data] of results){
+        if(resourceVersions[name]!==versions[name])continue;
+        const signature=token+':'+JSON.stringify(data)+(name==='products'?':'+shopToday():'');
+        if(resourceSignatures[name]===signature)continue;
+        resourceSignatures[name]=signature;applied.add(name);
+        if(name==='products'){const prods=data;products=prods.map(p=>({...p,cat:p.category,stock:Number(p.stock),retail_price:Number(p.retail_price),wholesale_price:Number(p.wholesale_price)}));}
+        if(name==='settings'){const settings=data;storeSettings={storeName:settings.store_name,tagline:settings.tagline||'',branch:settings.branch||'',address:settings.address||'',phone:settings.phone||'',taxId:settings.tax_id||'',currency:settings.currency,taxRate:Number(settings.tax_rate),receiptWidth:settings.receipt_width,receiptTemplate:settings.receipt_template||'Classic',receiptFont:settings.receipt_font||'Mono',receiptFontSize:Number(settings.receipt_font_size||11),receiptHeaderAlign:settings.receipt_header_align||'center',receiptShowAddress:settings.receipt_show_address!==false,receiptShowPhone:settings.receipt_show_phone!==false,receiptShowItemDates:settings.receipt_show_item_dates===true,icon:settings.icon||'🛒',footer:settings.footer||''};}
+        if(name==='credits')creditRecords=data.map(c=>({...c,id:c.customer_id,balance:Number(c.balance)}));
+        if(name==='sales')salesHistory=data.map(x=>normalSale(x));
+        if(name==='customers')customers=data;
+        if(name==='staff')staffList=data;
+      }
+      if(applied.has('customers')){
+        const select=document.getElementById('creditCustomerId'),selected=select.value;
+        select.replaceChildren(new Option('Select existing customer',''));
+        customers.forEach(c=>select.add(new Option(`${c.name} ${c.phone||''}`,c.id)));select.value=selected;
+      }
+      if(applied.has('settings'))applyStoreBranding();
+      updateActiveUserUI();
+      if(applied.has('products'))renderCategories();
+      if(applied.has('products')||applied.has('settings'))renderProducts();
+      if(applied.has('settings')||applied.has('products'))renderCart();
+      return true;
     }
 
         /* Sale Mode Switcher (Retail vs Wholesale) */
@@ -2662,7 +2736,8 @@
     }
 
     function shopToday() {
-      const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Karachi',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+      const formatter=shopToday.formatter ||= new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Karachi',year:'numeric',month:'2-digit',day:'2-digit'});
+      const parts=formatter.formatToParts(new Date());
       const part=type=>parts.find(p=>p.type===type).value;
       return `${part('year')}-${part('month')}-${part('day')}`;
     }
@@ -2698,6 +2773,7 @@
       }
 
       grid.innerHTML = filtered.map(p => {
+        const expiry=expiryState(p);
         const isWholesale = activeSaleMode === 'Wholesale';
         const packSize = p.wholesale_pack_size || 12;
         const wholesalePackPrice = (p.wholesale_price || p.retail_price) * packSize;
@@ -2735,7 +2811,7 @@
               </div>
               <div class="product-dates">
                 ${p.manufacturing_date?`<span>MFG ${esc(displayProductDate(p.manufacturing_date))}</span>`:''}
-                <span class="expiry-label expiry-${expiryState(p).kind}">${esc(expiryState(p).label)}</span>
+                <span class="expiry-label expiry-${expiry.kind}">${esc(expiry.label)}</span>
               </div>
               <div class="product-bottom">
                 <div class="price-display-block">
@@ -2747,7 +2823,7 @@
                     <span class="product-sub-price">Bulk: ${formatMoney(p.wholesale_price)}/pc</span>
                   `}
                 </div>
-                <button class="btn-add-cart" aria-label="Add" ${expiryState(p).kind==='expired'?'disabled title="Expired product"':''}>+</button>
+                <button class="btn-add-cart" aria-label="Add" ${expiry.kind==='expired'?'disabled title="Expired product"':''}>+</button>
               </div>
             </div>
           </div>
@@ -3023,7 +3099,7 @@
         document.getElementById('cashTenderedInput').value=''; renderCart();
         showReceiptPreview(normalSale(result.sale,result.items));
         showToast(`Sale saved: ${result.sale.receipt_no}`);
-        try { await syncFromBackend(); } catch(e) { showToast(`Sale saved. Refresh failed: ${e.message}`); }
+        try { await syncFromBackend(['products','sales','credits']); } catch(e) { showToast(`Sale saved. Refresh failed: ${e.message}`); }
       } catch(error) { showToast(error.message); }
       finally { checkingOut=false; renderCart(); }
     });
@@ -3240,16 +3316,16 @@
         if(file) {
           const form=new FormData(); form.append('product_id',saved.id); form.append('image',file);
           try { await api('/api/upload',{method:'POST',body:form}); }
-          catch(error) { await syncFromBackend(); throw new Error(`Product saved; image upload failed: ${error.message}. Retry to update this product.`); }
+          catch(error) { await syncFromBackend(['products']); throw new Error(`Product saved; image upload failed: ${error.message}. Retry to update this product.`); }
         }
-        await syncFromBackend(); closeModal('productModal'); showToast('Product saved in database');
+        await syncFromBackend(['products']); closeModal('productModal'); showToast('Product saved in database');
       } catch(error) { showToast(error.message); }
       finally { button.disabled=false; }
     });
     async function deleteCurrentProduct() {
       const id=document.getElementById('prodEditId').value;
       if(!id || !confirm('Deactivate this product?')) return;
-      try { await api(`/api/products/${id}`,{method:'DELETE'}); await syncFromBackend(); closeModal('productModal'); showToast('Product deactivated'); }
+      try { await api(`/api/products/${id}`,{method:'DELETE'}); await syncFromBackend(['products']); closeModal('productModal'); showToast('Product deactivated'); }
       catch(error) { showToast(error.message); }
     }
 
@@ -3292,7 +3368,7 @@
           receipt_header_align:value('setReceiptAlign'),receipt_show_address:document.getElementById('setReceiptShowAddress').checked,
           receipt_show_phone:document.getElementById('setReceiptShowPhone').checked,receipt_show_item_dates:document.getElementById('setReceiptShowDates').checked
         },'PATCH');
-        await syncFromBackend(); closeModal('settingsModal'); showToast('Settings saved');
+        await syncFromBackend(['settings']); closeModal('settingsModal'); showToast('Settings saved');
       } catch(error) { showToast(error.message); }
     });
 
@@ -3304,6 +3380,8 @@
       }
       renderStaffTable();
       openModal('staffModal');
+      const token=authToken;viewStatus('staffModal','Refreshing account…');
+      syncFromBackend(['staff']).then(()=>{if(authToken===token){renderStaffTable();viewStatus('staffModal','');}}).catch(error=>{if(authToken===token)viewStatus('staffModal','Could not refresh: '+error.message,true);});
     });
 
     function renderStaffTable() {
@@ -3313,7 +3391,7 @@
         [staff.name,staff.role,'Email/password',staff.is_active?'Active':'Inactive'].forEach(text=>{const td=document.createElement('td');td.textContent=text;tr.appendChild(td);});
         const td=document.createElement('td');
         if(staff.role==='Cashier') { const button=document.createElement('button');button.className='btn-nav';button.textContent=staff.is_active?'Deactivate':'Activate';
-          button.onclick=async()=>{try { await post(`/api/staff/${staff.id}`,{is_active:!staff.is_active},'PATCH'); await syncFromBackend(); renderStaffTable(); } catch(e){showToast(e.message);} };td.appendChild(button); }
+          button.onclick=async()=>{try { await post(`/api/staff/${staff.id}`,{is_active:!staff.is_active},'PATCH'); await syncFromBackend(['staff']); renderStaffTable(); } catch(e){showToast(e.message);} };td.appendChild(button); }
         else td.textContent='Admin'; tr.appendChild(td);tbody.appendChild(tr);
       });
     }
@@ -3321,16 +3399,23 @@
     const staffNote=document.createElement('p'); staffNote.textContent='This shop uses one admin login. Contact the system owner to manage account access.';
     document.getElementById('addStaffForm').before(staffNote);
 
-        document.getElementById('btnOpenSales').addEventListener('click',async()=>{
+    document.getElementById('btnOpenSales').addEventListener('click',async()=>{
+      const token=authToken,version=(viewLoads.get('salesModal')||0)+1;viewLoads.set('salesModal',version);
+      renderSalesTable();
+      document.querySelectorAll('#salesModal .metric-val').forEach(x=>x.textContent='…');
+      openModal('salesModal');viewStatus('salesModal','Refreshing sales and totals…');
       try {
-        const sales=await api('/api/sales');salesHistory=sales.map(s=>normalSale(s));
-        if(currentUser.role==='Admin') {
-          const report=await api('/api/reports/summary'); const row=report.currencies.find(x=>x.currency===storeSettings.currency)||{};
+        const epoch=apiEpoch;
+        const [,report]=await Promise.all([syncFromBackend(['sales']),currentUser.role==='Admin'?api('/api/reports/summary'):Promise.resolve(null)]);
+        if(authToken!==token||viewLoads.get('salesModal')!==version)return;
+        if(epoch!==apiEpoch){viewStatus('salesModal','Data changed while loading. Reopen Sales to refresh.');return;}
+        if(report){
+          const row=report.currencies.find(x=>x.currency===storeSettings.currency)||{};
           ['Net sales today','Cash sales today','Card sales today','Outstanding credit now'].forEach((label,i)=>document.querySelectorAll('#salesModal .metric-label')[i].textContent=label);
-          ['metricTotalRevenue','metricRetailRevenue','metricWholesaleRevenue','metricCreditSales'].forEach((id,i)=>document.getElementById(id).textContent=formatMoney([row.net_sales_including_tax,row.cash_sales,row.card_sales,row.outstanding_credit_now][i]));
-        } else { document.querySelectorAll('#salesModal .metric-val').forEach(x=>x.textContent='Admin only'); }
-        renderSalesTable(); openModal('salesModal');
-      } catch(error){showToast(error.message);}
+          ['metricTotalRevenue','metricRetailRevenue','metricWholesaleRevenue','metricCreditSales'].forEach((id,i)=>document.getElementById(id).textContent=formatMoney([row.net_sales_including_tax||0,row.cash_sales||0,row.card_sales||0,row.outstanding_credit_now||0][i]));
+        }else document.querySelectorAll('#salesModal .metric-val').forEach(x=>x.textContent='Admin only');
+        renderSalesTable();viewStatus('salesModal','Data loaded · Refresh for latest');
+      }catch(error){if(authToken===token)viewStatus('salesModal','Could not refresh: '+error.message,true);}
     });
     function renderSalesTable() {
       const tbody=document.getElementById('salesTableBody');tbody.replaceChildren();
@@ -3352,7 +3437,10 @@
     }
 
     document.getElementById('btnOpenCredit').addEventListener('click',async()=>{
-      try {await syncFromBackend();renderCreditTable();openModal('creditModal');}catch(e){showToast(e.message);}
+      const token=authToken,version=(viewLoads.get('creditModal')||0)+1;viewLoads.set('creditModal',version);
+      renderCreditTable();openModal('creditModal');viewStatus('creditModal','Refreshing customer balances…');
+      try {await syncFromBackend(['credits']);if(authToken!==token||viewLoads.get('creditModal')!==version)return;renderCreditTable();viewStatus('creditModal','Data loaded · Refresh for latest');}
+      catch(error){if(authToken===token)viewStatus('creditModal','Could not refresh: '+error.message,true);}
     });
     function renderCreditTable() {
       document.getElementById('creditTotalBalance').textContent=formatMoney(creditRecords.filter(c=>c.currency===storeSettings.currency).reduce((sum,c)=>sum+c.balance,0));
@@ -3367,7 +3455,7 @@
       const name=prompt('Customer / shop name:'); if(!name?.trim()) return;
       const phone=prompt('Phone: digits only, optionally starting with + (leave blank if none)');if(phone===null)return;
       const customer_type=confirm('Wholesale customer? OK = Wholesale, Cancel = Retail')?'Wholesale':'Retail';
-      try {await post('/api/customers',{name:name.trim(),phone:phone.trim()||null,customer_type,address:''});await syncFromBackend();renderCreditTable();showToast('Customer created');}catch(e){showToast(e.message);}
+      try {await post('/api/customers',{name:name.trim(),phone:phone.trim()||null,customer_type,address:''});await syncFromBackend(['customers','credits']);renderCreditTable();showToast('Customer created');}catch(e){showToast(e.message);}
     }
     async function settleCreditAccount(rec) {
       const text=prompt(`Cash repayment for ${rec.name} (${rec.currency}), balance ${rec.balance}:`);if(text===null)return;
@@ -3376,7 +3464,7 @@
       let body;try{body=JSON.parse(readSession(key)||'null');}catch{}
       if(body){if(!confirm('Retry the previous unconfirmed cash repayment?'))return;}
       else {body={request_id:crypto.randomUUID(),currency:rec.currency,amount,payment_method:'Cash',note:'Cash received at POS'};writeSession(key,JSON.stringify(body));}
-      try {await post(`/api/credits/${rec.id}/pay`,body);writeSession(key,null);await syncFromBackend();renderCreditTable();showToast('Repayment saved');}
+      try {await post(`/api/credits/${rec.id}/pay`,body);writeSession(key,null);await syncFromBackend(['credits']);renderCreditTable();showToast('Repayment saved');}
       catch(e){if(e.status&&e.status>=400&&e.status<500&&e.status!==409)writeSession(key,null);showToast(e.message);}
     }
     document.getElementById('btnSwitchUser').addEventListener('click',logout);
@@ -3386,7 +3474,7 @@
       try {
         const data=await post('/api/auth/login',{email:document.getElementById('loginEmail').value.trim(),password:document.getElementById('loginPassword').value});
         authToken=data.access_token;writeSession('pos_access_token',authToken);currentUser=data.user;
-        await syncFromBackend();document.getElementById('loginPassword').value='';document.getElementById('loginOverlay').style.display='none';showToast(`Welcome, ${currentUser.name}`);
+        await syncFromBackend(['products','settings','customers']);document.getElementById('loginPassword').value='';document.getElementById('loginOverlay').style.display='none';showToast(`Welcome, ${currentUser.name}`);void syncFromBackend(['credits','sales','staff']).catch(()=>{});
       }catch(error){document.getElementById('loginError').textContent=error.message;}
       finally{button.disabled=false;}
     });
@@ -3401,9 +3489,9 @@
     function resetDemoData() { showToast('Database reset is disabled. Business records must be managed through the backend.'); }
     async function initPOS() {
       applyStoreBranding();updateActiveUserUI();renderCategories();renderProducts();renderCart();
-      await checkBackendConnection();
+      void checkBackendConnection();
       if(authToken) {
-        try { const data=await api('/api/auth/me');currentUser=data.user;await syncFromBackend();document.getElementById('loginOverlay').style.display='none'; }
+        try { const data=await api('/api/auth/me');currentUser=data.user;await syncFromBackend(['products','settings','customers']);document.getElementById('loginOverlay').style.display='none';void syncFromBackend(['credits','sales','staff']).catch(()=>{}); }
         catch(error){logout();document.getElementById('loginError').textContent=error.message;}
       }
       if(!['http:','https:'].includes(location.protocol)) document.getElementById('loginError').textContent='Put this file in public/index.html and open http://127.0.0.1:3000.';
@@ -3413,7 +3501,7 @@
     /* Return / Exchange screen: quotes and writes always use the backend. */
     (() => {
       const $ = id => document.getElementById(id);
-      const ui = { receipt: null, replacements: [], quote: null, busy: false, pending: null };
+      const ui = { receipt: null, replacements: [], quote: null, busy: false, pending: null, loading:false, loadId:0 };
       const pendingKey = () => `pos_pending_return_${currentUser.id}`;
       const showError = message => { $('returnsMessage').textContent = message; };
       const cash = (value, currency) => `${currency} ${Number(value || 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -3430,7 +3518,7 @@
         $('returnsPreview').disabled = value || !!ui.pending || !ui.receipt;
         $('returnsConfirm').disabled = value || !(ui.quote || ui.pending);
         $('returnsEdit').disabled = value || !!ui.pending;
-        $('returnsClose').disabled = value;
+        $('returnsClose').disabled = value && !ui.loading;
       }
       function summary(settlement) {
         $('returnsSettlement').hidden = false;
@@ -3459,9 +3547,11 @@
       }
       $('btnOpenReturns').addEventListener('click', async () => {
         if (currentUser.role !== 'Admin') { showToast('Admin access required'); return; }
-        reset(); $('returnsDialog').showModal(); busy(true);
+        reset();ui.loading=true;const loadId=++ui.loadId;$('returnsDialog').showModal();busy(true);
+        const token=authToken;viewStatus('returnsDialog','Loading recent receipts and products…');
         try {
-          await syncFromBackend();
+          await syncFromBackend(['products','sales']);
+          if(authToken!==token||loadId!==ui.loadId||!$('returnsDialog').open)return;
           $('returnsRecent').replaceChildren(new Option('Recent receipts — or paste a number below', ''));
           salesHistory.forEach(s => $('returnsRecent').add(new Option(`${s.receiptNo} · ${cash(s.total, s.currency)} · ${s.payment_method}`, s.receiptNo)));
           $('returnsProduct').replaceChildren(new Option('Select a replacement product', ''));
@@ -3477,7 +3567,7 @@
             } catch { showError('A saved return request is unreadable. Ask the administrator to reconcile it before starting another return.'); ui.pending = { invalid: true }; }
           } else $('returnsConfirm').textContent = 'Confirm & record return';
         } catch (error) { showError(error.message); }
-        finally { busy(false); }
+        finally { if(loadId===ui.loadId){ui.loading=false;if(authToken===token){busy(false);viewStatus('returnsDialog','');}} }
       });
       $('returnsRecent').addEventListener('change', () => { $('returnsReceiptNo').value = $('returnsRecent').value; });
       $('returnsFind').addEventListener('click', async () => {
@@ -3586,17 +3676,17 @@
         $('returnsOriginalItems').replaceChildren(); $('returnsReplacementItems').replaceChildren(); ui.replacements = [];
         $('returnsReceiptInfo').textContent = `Saved return ${r.return_no}`;
         showError(`${result.replayed ? 'Recovered existing' : 'Saved'} return ${r.return_no}. Collect ${cash(r.cash_received, r.currency)}; refund ${cash(r.cash_refunded, r.currency)}; debt reduced ${cash(r.credit_applied, r.currency)}. Cash is recorded only; no bank transfer is performed.`);
-        try { await syncFromBackend(); } catch (error) { showToast(`Return saved. Refresh failed: ${error.message}`); }
+        try { await syncFromBackend(['products','sales','credits']); } catch (error) { showToast(`Return saved. Refresh failed: ${error.message}`); }
         busy(false);
       });
       $('returnsClose').addEventListener('click', () => $('returnsDialog').close());
-      $('returnsDialog').addEventListener('cancel', e => { if (ui.busy) e.preventDefault(); });
+      $('returnsDialog').addEventListener('cancel', e => { if (ui.busy&&!ui.loading) e.preventDefault(); });
     })();
 
     /* Admin stock operations; all changes are written by /api/stock/adjust. */
     (() => {
       const $ = id => document.getElementById(id);
-      const state = { busy: false, pending: null };
+      const state = { busy: false, pending: null, loading:false, loadId:0 };
       const key = () => `pos_pending_stock_${currentUser.id}`;
       const message = text => { $('stockMessage').textContent = text; };
       const selected = () => products.find(p => p.id === Number($('stockProduct').value));
@@ -3605,7 +3695,7 @@
         $('stockFields').disabled = value || !!state.pending;
         $('stockSave').disabled = value || !!state.pending?.invalid;
         $('stockReload').disabled = value || !!state.pending;
-        $('stockClose').disabled = value;
+        $('stockClose').disabled = value && !state.loading;
       }
       function preview() {
         const product = selected();
@@ -3633,10 +3723,12 @@
         $('stockSave').textContent = 'Recover earlier stock change';
         message('The previous result is unknown. Recover the same request below rather than recording the change again.');
       }
-      async function history() {
+      async function history(prefetched=null) {
+        const token=authToken,epoch=apiEpoch;
         const productId = Number($('stockProduct').value);
         const url = productId ? `/api/stock/movements?product_id=${productId}` : '/api/stock/movements';
-        const rows = await api(url);
+        const rows = prefetched ?? await api(url);
+        if(authToken!==token||apiEpoch!==epoch)return;
         const tbody = $('stockHistoryBody'); tbody.replaceChildren();
         if (!rows.length) {
           const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 6; td.textContent = 'No stock movements recorded for this selection.'; tr.appendChild(td); tbody.appendChild(tr); return;
@@ -3659,9 +3751,14 @@
         if (currentUser.role !== 'Admin') { showToast('Admin access required'); return; }
         state.pending = null; message(''); $('stockSave').textContent = 'Record stock change';
         $('stockOperation').value = 'Restock'; $('stockChange').value = ''; $('stockReason').value = '';
-        $('stockHistoryBody').replaceChildren(); $('stockDialog').showModal(); setBusy(true);
+        $('stockHistoryBody').replaceChildren();state.loading=true;const loadId=++state.loadId;$('stockDialog').showModal();setBusy(true);
+        const token=authToken;viewStatus('stockDialog','Refreshing inventory…');
+        let historyProductId=null;
+        try{const pending=JSON.parse(readSession(key())||'null');if(Number.isInteger(pending?.product_id)&&pending.product_id>0)historyProductId=pending.product_id;}catch{}
+        const historyURL=historyProductId?`/api/stock/movements?product_id=${historyProductId}`:'/api/stock/movements';
         try {
-          await syncFromBackend(); renderProducts();
+          const [,historyRows]=await Promise.all([syncFromBackend(['products']),api(historyURL)]);
+          if(authToken!==token||loadId!==state.loadId||!$('stockDialog').open)return;renderProducts();
           const stored = readSession(key());
           if (stored) {
             try {
@@ -3670,9 +3767,9 @@
               state.pending = parsed; renderPending();
             } catch { state.pending = { invalid: true }; message('The saved request is unreadable. Reconcile its movement before creating another stock change.'); }
           }
-          await history();
+          await history(historyRows);
         } catch (error) { message(error.message); }
-        finally { setBusy(false); }
+        finally { if(loadId===state.loadId){state.loading=false;if(authToken===token){setBusy(false);viewStatus('stockDialog','');}} }
       });
       $('stockProduct').addEventListener('change', async () => {
         if (state.busy || state.pending) return;
@@ -3687,7 +3784,7 @@
       $('stockReload').addEventListener('click', async () => {
         if (state.busy || state.pending) return;
         const id = $('stockProduct').value; setBusy(true); message('');
-        try { await syncFromBackend(); renderProducts(id); await history(); }
+        try { await syncFromBackend(['products'],true); renderProducts(id); await history(); }
         catch (error) { message(error.message); }
         finally { setBusy(false); }
       });
@@ -3718,12 +3815,12 @@
         $('stockSave').textContent = 'Record stock change'; $('stockChange').value = ''; $('stockReason').value = '';
         const movement = result.movement;
         message(`${result.replayed ? 'Recovered existing' : 'Saved'} movement ${movement.id}. Change: ${movement.quantity_change > 0 ? '+' : ''}${movement.quantity_change}; stock after this movement: ${movement.stock_after}.`);
-        try { await syncFromBackend(); renderProducts(body.product_id); await history(); }
+        try { await syncFromBackend(['products']); renderProducts(body.product_id); await history(); }
         catch (error) { showToast(`Stock change saved. Refresh failed: ${error.message}`); }
         finally { setBusy(false); }
       });
       $('stockClose').addEventListener('click', () => $('stockDialog').close());
-      $('stockDialog').addEventListener('cancel', e => { if (state.busy) e.preventDefault(); });
+      $('stockDialog').addEventListener('cancel', e => { if (state.busy&&!state.loading) e.preventDefault(); });
     })();
 
   </script>
