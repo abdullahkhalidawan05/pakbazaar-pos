@@ -1800,6 +1800,18 @@
  .login-platform-brand.neutral-shopping-logo svg { width:44px;height:44px; }
  #loginLogoIcon svg { width:28px;height:28px; }
 }
+@media screen {
+ .password-panel { margin-top:24px;padding:20px;border:1px solid #dfe7d5;border-radius:15px;background:#f8faf4; }
+ .password-panel h4 { font-size:17px;margin-bottom:7px; }
+ .password-panel>p { margin-bottom:18px; }
+ .password-visibility { display:flex;flex-direction:row;align-items:center;gap:9px;font-size:12px;min-height:44px; }
+ .password-visibility input { width:18px;height:18px; }
+ .password-message { color:#b45345;font-size:12px;line-height:1.7;min-height:0; }
+ .password-message:empty { display:none; }
+ .password-success { padding:12px;margin:14px 0;background:#ecf5e7;border:1px solid #d5e6ca;border-radius:10px;color:#315f32;font-size:12px;line-height:1.7; }
+ #changePasswordSubmit { width:fit-content; }
+}
+@media screen and (max-width:760px) { .password-panel { padding:15px; } #changePasswordSubmit { width:100%; } }
 </style>
 </head>
 <body class="mode-retail">
@@ -2124,6 +2136,20 @@
           </thead>
           <tbody id="staffTableBody"></tbody>
         </table>
+        <section class="password-panel" aria-labelledby="passwordHeading">
+          <h4 id="passwordHeading">Change password</h4>
+          <p class="form-hint">Update the password for this shop login. Finish any open order first; you will sign in again afterwards.</p>
+          <form id="changePasswordForm" class="form-grid">
+            <div class="form-group full"><label class="form-label" for="currentPassword">Current password</label><input class="form-input" id="currentPassword" type="password" autocomplete="current-password" required maxlength="1024"></div>
+            <div class="form-group"><label class="form-label" for="newPassword">New password</label><input class="form-input" id="newPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="128" aria-describedby="passwordRules"></div>
+            <div class="form-group"><label class="form-label" for="confirmPassword">Confirm new password</label><input class="form-input" id="confirmPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="128"></div>
+            <p id="passwordRules" class="form-hint form-group full">Use 12–128 characters. Choose a long, unique password or passphrase.</p>
+            <label class="password-visibility form-group full"><input id="showAccountPasswords" type="checkbox"> Show passwords</label>
+            <p id="passwordChangeMessage" class="form-group full password-message" role="alert" aria-live="polite"></p>
+            <div class="form-group full"><button class="btn-modal-save" id="changePasswordSubmit" type="submit">Update password</button></div>
+          </form>
+        </section>
+
       </div>
     </div>
   </div>
@@ -2360,6 +2386,7 @@
       <h2 class="login-welcome">Welcome back.</h2>
       <p style="margin:12px 0;color:#64748b">Sign in to open your shop workspace.</p>
       <form id="backendLoginForm" style="text-align:left">
+        <p id="passwordChangedNotice" role="status" class="password-success" hidden></p>
         <label class="form-label" for="loginEmail">Email</label>
         <input class="form-input" id="loginEmail" placeholder="you@example.com" type="email" autocomplete="username" required>
         <label class="form-label" for="loginPassword" style="margin-top:12px">Password</label>
@@ -3804,5 +3831,35 @@
 })();
 </script>
 
+<script>
+(() => {
+ const $=id=>document.getElementById(id), form=$('changePasswordForm');let busy=false;
+ function clearPasswords(){form.reset();['currentPassword','newPassword','confirmPassword'].forEach(id=>$(id).type='password');$('passwordChangeMessage').textContent='';}
+ $('showAccountPasswords').addEventListener('change',()=>{['currentPassword','newPassword','confirmPassword'].forEach(id=>$(id).type=$('showAccountPasswords').checked?'text':'password');});
+ new MutationObserver(()=>{if(!$('staffModal').classList.contains('open'))clearPasswords();}).observe($('staffModal'),{attributes:true,attributeFilter:['class']});
+ $('btnSwitchUser').addEventListener('click',clearPasswords);
+ $('backendLoginForm').addEventListener('submit',()=>{$('passwordChangedNotice').hidden=true;});
+ form.addEventListener('submit',async e=>{
+  e.preventDefault();if(busy)return;
+  $('passwordChangeMessage').textContent='';
+  if(cart.size){$('passwordChangeMessage').textContent='Finish or clear your current order before changing the password.';return;}
+  const current=$('currentPassword').value, next=$('newPassword').value, confirmation=$('confirmPassword').value;
+  if(!current||next.length<12||next.length>128){$('passwordChangeMessage').textContent='Enter the current password and a new password of 12 to 128 characters.';return;}
+  if(next!==confirmation){$('passwordChangeMessage').textContent='The new passwords do not match.';return;}
+  if(next===current){$('passwordChangeMessage').textContent='Choose a password different from your current password.';return;}
+  const originalToken=authToken;
+  busy=true;$('changePasswordSubmit').disabled=true;$('changePasswordSubmit').textContent='Updating…';
+  try{
+   const result=await post('/api/auth/change-password',{current_password:current,new_password:next,confirm_password:confirmation});
+   clearPasswords();
+   if(authToken!==originalToken)return;
+   logout();$('passwordChangedNotice').textContent=result.message||'Password changed. Sign in again with your new password.';$('passwordChangedNotice').hidden=false;$('loginPassword').value='';$('loginEmail').focus();
+  }catch(error){
+   $('currentPassword').value='';
+   if(authToken===originalToken)$('passwordChangeMessage').textContent=error.message;
+  }finally{busy=false;$('changePasswordSubmit').disabled=false;$('changePasswordSubmit').textContent='Update password';}
+ });
+})();
+</script>
 </body>
 </html>
