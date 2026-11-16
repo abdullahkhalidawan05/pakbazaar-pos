@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PakBazaar — Dual Wholesale & Retail POS</title>
+  <title>POS — Shop Workspace</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
@@ -1345,11 +1345,473 @@
 }
 @media print { .mobile-tabs,.mobile-menu-button { display:none!important; } }
 
+
+/* Product date tracking and thermal receipt design presets. */
+.expiry-filter-row { display:flex;align-items:center;gap:10px;font-size:13px; }
+.expiry-filter-row select { width:auto;max-width:100%; }
+.product-dates { display:flex;flex-direction:column;gap:5px;font-size:10px;margin:8px 0; }
+.expiry-label { padding:4px 6px;border-radius:6px;background:#f1f5f9;line-height:1.5; }
+.expiry-expired { background:#fef2f2;color:#b91c1c;font-weight:700; }
+.expiry-soon { background:#fffbeb;color:#92400e;font-weight:700; }
+.expiry-valid { color:#166534;background:#f0fdf4; }
+.btn-add-cart:disabled { opacity:.4;cursor:not-allowed; }
+.receipt-design-heading { border-top:1px solid #e2e8f0;padding-top:16px;margin-top:8px; }
+.receipt-checks { display:flex;flex-wrap:wrap;gap:12px; }
+.receipt-checks label { display:flex;gap:8px;align-items:center;font-size:13px;min-height:44px; }
+.receipt-checks input { width:18px;height:18px; }
+.receipt-container { max-width:100%;overflow-wrap:anywhere; }
+.receipt-header { text-align:var(--receipt-header-align,center); }
+.receipt-store-name { font-size:1.4em; }
+.receipt-total-row { font-size:1.25em; }
+.receipt-footer { font-size:.95em; }
+.receipt-line-meta { font-size:.85em;color:#333; }
+.receipt-table { table-layout:fixed; }
+.receipt-table th:first-child { width:43%; }
+.receipt-table td { overflow-wrap:anywhere; }
+.receipt-sample { text-align:center;border:1px dashed #000;padding:7px;margin-bottom:10px;font-weight:bold; }
+.receipt-container[data-template="Compact"] { line-height:1.15; }
+.receipt-container[data-template="Compact"] .receipt-header { margin-bottom:5px; }
+.receipt-container[data-template="Compact"] .receipt-divider { margin:3px 0; }
+.receipt-container[data-template="Compact"] .receipt-table td { padding:2px 0; }
+.receipt-container[data-template="Modern"] .receipt-store-name { padding:7px 0;border-top:3px solid #000;border-bottom:1px solid #000;letter-spacing:.04em; }
+.receipt-container[data-template="Modern"] .receipt-divider { border-top-style:solid; }
+.receipt-container[data-template="Modern"] .receipt-total-row { border-top:2px solid #000;border-bottom:2px solid #000;padding:7px 0; }
+@media screen and (max-width:760px) { .expiry-filter-row { flex-wrap:wrap; } .expiry-filter-row select { flex:1;min-height:44px; } }
+@media print {
+ html,body { height:auto!important;min-height:0!important;overflow:visible!important; }
+ body > :not(#receiptModal) { display:none!important; }
+ #receiptModal { position:static!important; }
+ #receiptModal .modal-window { width:var(--receipt-width)!important;max-width:100%!important;max-height:none!important;margin:0!important;overflow:visible!important; }
+ #receiptModal .modal-content { padding:0!important;overflow:visible!important; }
+ #receiptContainer { width:var(--receipt-width)!important;max-width:100%!important;margin:0!important; }
+}
+
+/* PakBazaar Workspace — visual layer. Receipt styling is deliberately separate. */
+:root { --primary:#246b50;--primary-hover:#19543d;--primary-light:#edf5ed;--primary-border:#c6dfcc;--wholesale:#6552a5;--wholesale-hover:#514086;--wholesale-light:#f2effa;--wholesale-border:#dcd3f1;--accent:#246b50;--ink:#21382e;--slate-700:#43574b;--slate-600:#5a6b60;--slate-500:#778478;--slate-400:#99a59a;--slate-300:#d2d9d0;--slate-200:#e2e7de;--slate-100:#f3f5ee;--slate-50:#f8f9f5;--radius-sm:10px;--radius-md:16px;--radius-lg:22px;--shadow-sm:0 2px 4px #21382e04;--shadow-md:0 8px 24px #21382e09;--shadow-lg:0 24px 80px #142d2630; }
+@media screen {
+ body { background:#f4f5ef;letter-spacing:-.15px; }
+ button,input,select,textarea { -webkit-tap-highlight-color:transparent; }
+ button:focus-visible,a:focus-visible,[tabindex]:focus-visible { outline:3px solid #8db959;outline-offset:3px; }
+ button { touch-action:manipulation; }
+ .app-layout { grid-template-columns:106px minmax(0,1fr) 386px;height:100vh;height:100dvh;min-height:0; }
+ .workspace-nav { background:#17382f;display:flex;flex-direction:column;min-height:0;height:100%;padding:25px 10px 14px;gap:20px;color:#e8eee8; }
+ .workspace-logo { text-align:center;flex-shrink:0; }
+ .workspace-logo>span { font-size:39px;font-weight:800;letter-spacing:-4px;line-height:1; }
+ .logo-dot { color:#c5ed8e; }
+ .workspace-logo small { display:block;font-size:8px;font-weight:700;letter-spacing:1.4px;margin-top:9px;color:#a7c2b1; }
+ #workspaceNavigation { flex:1;overflow-y:auto;min-height:0;scrollbar-width:thin;scrollbar-color:#466052 transparent; }
+ .workspace-nav .topbar-actions { display:flex;flex-direction:column;flex-wrap:nowrap;gap:7px;width:100%; }
+ .workspace-nav .btn-nav,.workspace-sell { flex-direction:column;justify-content:center;align-items:center;gap:7px;width:100%;min-height:63px;padding:10px 4px;border:0;border-radius:13px;background:transparent;color:#b6c9bc;font-size:10px;font-weight:600;line-height:1.3;box-shadow:none; }
+ .workspace-sell { display:flex;margin-bottom:7px; }
+ .nav-icon { display:flex;align-items:center;justify-content:center; }
+ .nav-icon svg { width:20px;height:20px;stroke-width:1.7; }
+ .workspace-nav .btn-nav:hover,.workspace-sell:hover { background:#294b3c;color:white; }
+ .workspace-nav .nav-active,.workspace-nav .btn-nav.primary { color:#ddf4ca;background:#315640; }
+ .workspace-nav .nav-active { box-shadow:inset 3px 0 #c5ed8e; }
+ .workspace-account { border-top:1px solid #ffffff1a;padding-top:12px; }
+ .workspace-account .user-pill { display:flex;flex-direction:column;gap:9px;border:0;background:none;padding:0; }
+ .workspace-account .user-avatar { background:#d7e8c9;color:#17382f;width:34px;height:34px;border-radius:12px; }
+ .workspace-account .user-details { display:none; }
+ .workspace-account .btn-switch-user { color:#c8d8cb;background:#ffffff0a;border:1px solid #ffffff1a;min-height:36px;min-width:62px;border-radius:9px;font-size:10px; }
+ .workspace-menu-close,.workspace-scrim { display:none; }
+ .catalog-panel { height:100%;background:#f5f6f0;border:0;min-width:0; }
+ .topbar { padding:18px 26px;gap:16px;border-bottom:1px solid #e4e8de;background:#fdfefb;min-height:87px;flex-shrink:0;flex-wrap:wrap; }
+ .brand-section { flex:1;min-width:160px;gap:10px; }
+ .brand-icon { width:39px;height:39px;border:1px solid #dfe6d8;background:#eef3e7;color:#2d6343;border-radius:12px;box-shadow:none;font-size:20px;flex-shrink:0; }
+ .brand-title { font-size:15px;letter-spacing:-.3px;flex-wrap:wrap;gap:6px; }
+ .brand-subtitle { font-size:10px;color:#8a9588;margin-top:4px; }
+ .store-badge { background:#f0f3eb;color:#657660;border-color:#e3e8db;font-size:9px;padding:3px 6px; }
+ .mode-switcher-container { padding:4px;background:#f0f2eb;border:1px solid #e0e6d9;border-radius:11px; }
+ .mode-switch-btn { border-radius:8px;padding:9px 12px;font-size:10px;min-height:35px;white-space:nowrap; }
+ .mode-switch-btn.active.retail { background:white;color:#2b6043;box-shadow:0 2px 5px #22392b12; }
+ .mode-switch-btn.active.wholesale { background:white;color:#6652a5;box-shadow:0 2px 5px #22392b12; }
+ .workspace-header-meta { display:flex;gap:12px;align-items:center; }
+ .workspace-date { font-size:10px;color:#7a8677;white-space:nowrap; }
+ .backend-status-pill { padding:7px 9px;font-size:9px;border:1px solid #d9e5d4;border-radius:8px;background:#f3f8ef; }
+ .backend-status-pill.online { background:#f3f8ef;color:#52784d; }
+ .catalog-body { padding:25px 26px;gap:17px;scrollbar-width:thin;scrollbar-color:#d1d9c8 transparent;min-height:0; }
+ .workspace-heading { display:flex;align-items:center;justify-content:space-between;gap:16px;flex-shrink:0; }
+ .workspace-eyebrow { font-size:9px;letter-spacing:1.7px;color:#7b8c76;font-weight:700; }
+ .workspace-heading h1 { font-size:31px;line-height:1.25;letter-spacing:-1.3px;margin:8px 0 7px;font-weight:800; }
+ .heading-dot { color:#72a948;margin-left:2px; }
+ .workspace-heading p { font-size:11px;color:#7d8978;line-height:1.6; }
+ .workspace-shortcut { color:#8c9883;display:flex;align-items:center;gap:6px;font-size:8px;letter-spacing:1px;white-space:nowrap; }
+ kbd { font:inherit;letter-spacing:0;background:#fff;border:1px solid #e0e5d9;border-radius:5px;padding:5px 7px;color:#53624d;box-shadow:0 2px 0 #e8ecdf; }
+ .workspace-insights { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;flex-shrink:0; }
+ .workspace-insight { display:flex;align-items:center;gap:11px;padding:13px 14px;background:#ffffffb0;border:1px solid #e3e8dc;border-radius:14px; }
+ .insight-icon { width:36px;height:36px;display:grid;place-items:center;background:#eaf2e0;color:#547341;border-radius:11px;font-size:20px;flex-shrink:0; }
+ .insight-icon.amber { color:#94723c;background:#f6f0dc; }
+ .insight-icon.purple { color:#81709b;background:#efebf6; }
+ .workspace-insight small { display:block;font-size:9px;color:#899280;line-height:1.5; }
+ .workspace-insight strong { display:block;font-size:21px;line-height:1.3;letter-spacing:-.6px;margin-top:2px; }
+ .mode-banner { border:1px solid #dde7d6;border-radius:10px;gap:10px;padding:10px 13px;font-size:10px;line-height:1.6;flex-shrink:0; }
+ .mode-banner.retail { background:#edf3e6;color:#557448;border-color:#dce6d2; }
+ .mode-banner.wholesale { background:#f0edf9;color:#75638e;border-color:#e4ddf1; }
+ .mode-banner .btn-nav { border:0;box-shadow:none;background:transparent;flex-shrink:0;font-size:9px!important;color:inherit; }
+ .search-row { margin:0;flex-shrink:0; }
+ .search-box { width:100%; }
+ .search-input { border:1px solid #dfe5d8;border-radius:13px;background:white;height:51px;padding-left:44px;padding-right:103px;font-size:12px;box-shadow:0 3px 6px #273f2103; }
+ .search-input:focus { border-color:#93b57e;box-shadow:0 0 0 3px #acc49220; }
+ .search-box svg { color:#8d9d83;left:16px;width:18px;height:18px; }
+ .scanner-badge { right:12px;gap:5px;color:#8d9884;background:transparent;padding:0;font-size:8px; }
+ .scanner-badge kbd { padding:3px 5px; }
+ .expiry-filter-row { font-size:10px;gap:8px;justify-content:flex-end;flex-shrink:0; }
+ .expiry-filter-row select { padding:7px 10px;border-radius:9px;background:#fafbf7;font-size:10px;min-height:34px; }
+ .categories-bar { gap:7px;margin:0;padding:2px 0 5px;flex-shrink:0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin; }
+ .category-chip { padding:9px 15px;border-radius:9px;font-size:10px;white-space:nowrap;background:#ffffffb0;border:1px solid #e4e8dd;min-height:36px;flex-shrink:0;color:#7a8970; }
+ .category-chip.active { background:#254b35;color:#f2f8ea;border-color:#254b35;box-shadow:none; }
+ .workspace-catalog-label { display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0; }
+ .workspace-catalog-label h2 { font-size:13px;letter-spacing:-.2px; }
+ .workspace-catalog-label>span { font-size:10px;color:#8c9782; }
+ .products-grid { grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:13px;align-items:stretch;padding-bottom:20px; }
+ .product-card { border:1px solid #e3e8dd;border-radius:16px;box-shadow:0 2px 2px #253b2102;background:white;min-width:0;transition:box-shadow .18s,border-color .18s,transform .18s; }
+ .product-card:hover { transform:translateY(-3px);border-color:#b7cba5;box-shadow:0 10px 24px #344d2510; }
+ .product-image-wrap { height:127px;margin:7px 7px 0;border-radius:11px;background:#f0f3e9;overflow:hidden; }
+ .product-card:nth-child(4n+2) .product-image-wrap { background:#f4f0e7; }
+ .product-card:nth-child(4n+3) .product-image-wrap { background:#edf1f1; }
+ .product-card:nth-child(4n+4) .product-image-wrap { background:#f1edf2; }
+ .product-image-wrap img { object-fit:contain;padding:10px; }
+ .fallback-emoji { font-size:48px;filter:drop-shadow(0 6px 5px #203b2612); }
+ .stock-tag { font-size:8px;top:8px;left:8px;background:#ffffffdf;border:1px solid #ffffff;border-radius:6px;color:#6e7e63;padding:4px 6px;backdrop-filter:blur(4px); }
+ .stock-tag.low { color:#9b7138;background:#fff8e5; }
+ .wholesale-badge-card { font-size:8px;bottom:8px;border-radius:6px;padding:4px 6px; }
+ .edit-btn-quick { width:28px;height:28px;border-radius:8px;top:7px;right:7px;opacity:.8;box-shadow:0 2px 7px #203b2610; }
+ .product-info { padding:12px;gap:10px;flex:1; }
+ .product-title { font-size:12px;line-height:1.5;letter-spacing:-.15px;min-height:35px; }
+ .product-units-row { margin-top:5px;gap:4px;flex-wrap:wrap; }
+ .product-retail-unit,.product-wholesale-unit { font-size:8px;background:#f5f7f0;border:0;padding:3px 5px;border-radius:4px;color:#8a947f; }
+ .product-dates { font-size:8px;gap:4px;margin:0; }
+ .expiry-label { background:#f5f7f1;padding:3px 5px;border-radius:4px; }
+ .expiry-soon { background:#faf3de;color:#987132; }
+ .expiry-expired { background:#faebea;color:#b55a50; }
+ .expiry-valid { background:#edf5e8;color:#6d885c; }
+ .product-bottom { margin-top:auto;padding-top:7px;border-top:1px solid #f0f3e9;gap:5px; }
+ .product-main-price { font-size:17px;letter-spacing:-.7px;font-weight:800;color:#2e4834; }
+ .product-sub-price { font-size:8px;color:#9ba48f;line-height:1.5;margin-top:3px; }
+ .btn-add-cart { width:34px;height:34px;border-radius:11px;background:#eef4e8;border:1px solid #dce8d2;color:#50773c;font-size:22px; }
+ .btn-add-cart:hover { background:#254b35;color:#fff;border-color:#254b35; }
+ .workspace-empty { grid-column:1/-1;text-align:center;padding:40px 18px;background:#ffffff99;border:1px dashed #ccd8c0;border-radius:18px; }
+ .workspace-empty-icon { display:grid;place-items:center;width:60px;height:60px;background:#e9f0de;border-radius:18px;font-size:30px;color:#78975e;margin:0 auto 16px; }
+ .workspace-empty h3 { font-size:17px; }
+ .workspace-empty p { font-size:12px;color:#87947b;margin:10px 0 18px;line-height:1.7; }
+ .cart-panel { height:100%;border-left:1px solid #e1e7da;box-shadow:none;background:white;min-height:0; }
+ .cart-header { padding:24px 20px 19px;border-bottom:1px solid #e7ecdf;gap:10px;align-items:flex-start; }
+ .cart-title-row { flex-wrap:wrap;gap:8px; }
+ .cart-title { flex-basis:100%;font-size:21px;letter-spacing:-.8px;margin-bottom:6px; }
+ .cart-badge { font-size:9px;background:#f3f5ec;color:#89947c;border-radius:6px;padding:5px 7px; }
+ .cart-sale-type-pill { font-size:9px;border-radius:6px;padding:5px 7px; }
+ .cart-sale-type-pill.retail { background:#edf5e7;color:#6e865d; }
+ #btnClearCart { border:1px solid #e8eade;border-radius:7px;background:#fdfefb;font-size:9px!important;padding:6px 8px!important;color:#8b9781!important; }
+ .cart-items { padding:15px 18px;gap:11px;min-height:0;scrollbar-width:thin;scrollbar-color:#d8dfcc transparent; }
+ .cart-empty { text-align:center;border:1px dashed #dde5d4;border-radius:17px;background:#fafbf7;padding:25px 18px;min-height:180px;gap:5px; }
+ .cart-empty svg { width:43px;height:43px;color:#a3b494;margin-bottom:9px; }
+ .cart-empty p:first-of-type { font-size:13px!important; }
+ .cart-empty p:last-child { font-size:10px!important;line-height:1.8;max-width:210px;color:#9ca78f; }
+ .cart-item-row { padding:12px 0;grid-template-columns:43px minmax(0,1fr) auto;border-bottom:1px solid #eef2e7;gap:10px;background:white; }
+ .cart-item-img { width:43px;height:47px;border-radius:10px;background:#eff3e9;font-size:24px; }
+ .cart-item-name { font-size:11px;line-height:1.5; }
+ .cart-item-tier-toggle { font-size:8px;border-radius:5px; }
+ .cart-item-rate { font-size:9px;color:#9aa58f; }
+ .cart-item-stepper { margin-top:7px;gap:0;background:#f6f8f0;border:1px solid #e6ebdc;border-radius:8px;width:fit-content;overflow:hidden; }
+ .stepper-btn { width:27px;height:27px;background:transparent;border:0;font-size:15px;border-radius:0;color:#627c50; }
+ .stepper-qty { min-width:25px;font-size:10px; }
+ .cart-item-total { font-size:12px;letter-spacing:-.4px; }
+ .btn-remove-item { width:23px;height:23px;color:#b8bfb0;font-size:18px; }
+ .cart-checkout-section { padding:17px 20px 20px;background:#fcfdf9;border-top:1px solid #e4e9dc;gap:12px;flex-shrink:0; }
+ .summary-lines { gap:9px; }
+ .summary-row { font-size:11px;color:#89967c; }
+ .summary-row span:last-child { color:#4e6341;font-weight:600; }
+ .summary-row.total-row { padding-top:12px;margin-top:3px;border-top:1px dashed #dce4d1;color:#354f28;font-size:12px; }
+ .total-amount { font-size:25px;letter-spacing:-1px;color:#233d1c!important; }
+ .workspace-payment-label { font-size:8px;letter-spacing:1.6px;font-weight:700;color:#91a180;margin-top:3px; }
+ .payment-selector { gap:7px;grid-template-columns:repeat(4,minmax(0,1fr)); }
+ .pay-btn { border:1px solid #e0e7d6;border-radius:10px;min-height:57px;padding:8px 4px;color:#90a080;font-size:9px;background:white;gap:5px; }
+ .pay-btn>span { font-size:19px; }
+ .pay-btn.active { border-color:#8bb16d;background:#f0f6e8;color:#4f7434;box-shadow:0 0 0 1px #8bb16d; }
+ .tender-drawer { padding:10px;background:#f1f5e9;border:1px solid #e3ead8;border-radius:11px;gap:9px; }
+ .btn-quick-cash { background:#fff;border:1px solid #e2e9d7;color:#7c9169;border-radius:6px;font-size:8px;padding:6px 4px; }
+ .cash-calc-row { flex-wrap:wrap; }
+ .cash-input { border-color:#dce6d0;border-radius:8px;font-size:12px;min-width:0;flex:1;width:100%;background:white; }
+ .change-badge { font-size:9px;background:transparent;color:#70875e;text-align:right; }
+ .credit-drawer { border-radius:11px;background:#f9f3e7;border-color:#ece1c8; }
+ .btn-checkout { margin-top:2px;min-height:54px;background:#284f36;color:#f4f9eb;box-shadow:0 5px 13px #284f3616;border-radius:12px;font-size:13px;letter-spacing:0; }
+ .btn-checkout:hover:not(:disabled) { background:#1e412b;transform:translateY(-1px); }
+ .btn-checkout:disabled { opacity:.4; }
+ .cart-checkout-section>.btn-nav { min-height:28px;background:transparent;font-size:9px;color:#91a180;border:0; }
+ .btn-nav { border:1px solid #e0e6d8;background:#fff;border-radius:9px;color:#6d7f60;font-size:11px;padding:9px 12px; }
+ .btn-nav.primary { background:var(--primary);border-color:var(--primary);color:#fff; }
+ .modal-overlay { background:#152d266e;backdrop-filter:blur(7px);padding:24px; }
+ .modal-window { border-radius:22px;border:1px solid #dfe7d7;box-shadow:0 25px 100px #122d2630; }
+ .modal-top { background:#f7faf2;padding:20px 24px;border-bottom:1px solid #e4eadd;gap:10px; }
+ .modal-heading { font-size:18px;letter-spacing:-.5px; }
+ .btn-close-modal { width:35px;height:35px;border:1px solid #dfe7d7;background:#fff;border-radius:10px;color:#8a9a7d; }
+ .modal-content { padding:24px; }
+ .form-grid { gap:18px; }
+ .form-label { font-size:11px;color:#667b57;font-weight:600; }
+ .form-input,.form-select,.form-textarea { border:1px solid #dce4d3;border-radius:10px;padding:11px 12px;background:#fdfefb;font-size:13px;min-height:42px; }
+ .form-input:focus,.form-select:focus,.form-textarea:focus { border-color:#98b77e;box-shadow:0 0 0 3px #a7c58920; }
+ .form-hint { font-size:10px;line-height:1.7;color:#94a088; }
+ .modal-actions { padding:17px 0 0;gap:10px; }
+ .btn-modal-save { border-radius:10px;background:#284f36;padding:12px 18px;font-size:12px;min-height:43px;box-shadow:none; }
+ .btn-modal-cancel { border:1px solid #dfe6d6;background:white;border-radius:10px;font-size:12px;padding:11px 16px;min-height:43px;color:#7c8e6c; }
+ .metrics-grid { gap:12px; }
+ .metric-card { border:1px solid #e1e8d8;background:#f8faf4;border-radius:14px;padding:16px; }
+ .metric-label { font-size:9px;letter-spacing:.7px;color:#92a180; }
+ .metric-val { font-size:24px;letter-spacing:-.9px;color:#38532b; }
+ .custom-table { font-size:11px; }
+ .custom-table th { background:#f1f5e9;color:#8b9c77;font-size:9px;letter-spacing:.6px;padding:12px; }
+ .custom-table td { padding:13px 12px;border-bottom-color:#edf1e5; }
+ .calc-preview-box { background:#f0f5e7;color:#6b8752;border-color:#dce7cb;border-radius:10px;font-size:11px; }
+ #stockDialog,#returnsDialog { background:#f5f8ef;border-color:#dae4cf;border-radius:22px;box-shadow:0 25px 100px #122d2640; }
+ .returns-heading { background:#fff;padding:21px 24px;border-bottom:1px solid #e1e8d7;gap:12px; }
+ .returns-heading h2 { font-size:21px;letter-spacing:-.7px; }
+ .return-section { border:1px solid #e0e7d6;border-radius:15px;padding:18px; }
+ .return-section h3 { font-size:14px;color:#496039; }
+ .return-muted { color:#8c9b7c;font-size:11px;line-height:1.7; }
+ .toast-box { border-radius:12px;background:#203e2d;box-shadow:0 8px 25px #203e2d20;padding:13px 20px;font-size:12px; }
+ .login-overlay { grid-template-columns:minmax(0,1.15fr) minmax(360px,.85fr);background:#f4f6ed;padding:0;gap:0;overflow:auto; }
+ .workspace-login-story { align-self:stretch;background:#193b2e;color:#f3f7e9;padding:50px 58px 35px;display:flex;flex-direction:column;justify-content:space-between;min-height:100vh;min-height:100dvh;position:relative;overflow:hidden; }
+ .workspace-login-story:after { content:'';width:390px;height:390px;border:1px solid #c8e79f22;border-radius:50%;position:absolute;bottom:80px;right:-170px;box-shadow:0 0 0 65px #c8e79f05,0 0 0 130px #c8e79f04;pointer-events:none; }
+ .login-platform-brand { font-size:54px;font-weight:800;letter-spacing:-5px;position:relative;z-index:1; }
+ .login-platform-brand>span { color:#c8ed8d; }
+ .login-platform-brand small { display:block;font-size:9px;letter-spacing:2px;color:#8fad97;margin-top:9px; }
+ .login-story-copy { position:relative;z-index:1;padding:50px 0; }
+ .login-story-copy .workspace-eyebrow { color:#aac28e; }
+ .login-story-copy h1 { font-size:clamp(38px,4.4vw,68px);font-weight:500;line-height:1.14;letter-spacing:-3px;margin:23px 0; }
+ .login-story-copy h1 span { color:#c8ed8d; }
+ .login-story-copy p { color:#a4b99f;font-size:13px;line-height:1.9; }
+ .login-story-footer { display:flex;justify-content:space-between;gap:12px;font-size:10px;color:#8ca185;position:relative;z-index:1; }
+ .login-card { margin:45px auto;width:min(370px,calc(100% - 64px));padding:0;border:0;background:transparent;box-shadow:none;text-align:left;border-radius:0; }
+ .login-logo { width:52px;height:52px;background:#e9efdf;border:1px solid #dbe5cd;border-radius:16px;margin:0 0 18px;font-size:25px; }
+ .login-shop-name { font-size:10px;color:#8a9a7a;font-weight:600;letter-spacing:.5px;margin-bottom:9px; }
+ .login-welcome { font-size:32px;letter-spacing:-1.3px;font-weight:700; }
+ .login-card>p { font-size:12px;margin:10px 0 28px!important;color:#8b9a7d!important; }
+ .login-card .form-label { margin-bottom:7px;display:block;font-size:11px; }
+ .login-card .form-input { background:#fff;min-height:49px;font-size:13px;border-color:#dce4d1; }
+ #loginSubmit { min-height:49px;display:flex;justify-content:space-between;align-items:center;border-radius:11px;margin-top:18px;font-size:12px; }
+ #loginError { font-size:12px;line-height:1.7; }
+}
+@media screen and (min-width:761px) and (max-width:1250px) {
+ .app-layout { grid-template-columns:88px minmax(0,1fr) 340px; }
+ .workspace-nav { padding:21px 8px 12px; }
+ .workspace-logo>span { font-size:34px; }
+ .workspace-nav .btn-nav,.workspace-sell { font-size:9px;min-height:58px; }
+ .topbar { padding:14px 18px;gap:9px; }
+ .brand-title { font-size:13px; }
+ .workspace-header-meta { width:auto;gap:6px; }
+ .workspace-date { display:none; }
+ .catalog-body { padding:20px 18px;gap:14px; }
+ .workspace-heading h1 { font-size:28px; }
+ .workspace-shortcut { display:none; }
+ .workspace-insight { padding:10px;gap:8px; }
+ .insight-icon { width:29px;height:29px;font-size:17px; }
+ .workspace-insight small { font-size:8px; }
+ .workspace-insight strong { font-size:18px; }
+ .products-grid { grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px; }
+ .product-image-wrap { height:110px; }
+ .product-title { font-size:11px; }
+ .cart-header { padding:20px 15px; }
+ .cart-checkout-section { padding:15px; }
+}
+@media screen and (max-width:980px) and (min-width:761px) {
+ .app-layout { grid-template-columns:80px minmax(0,1fr) 310px; }
+ .topbar { gap:8px; }
+ .mode-switcher-container { width:100%; }
+ .mode-switch-btn { flex:1;justify-content:center; }
+ .workspace-header-meta { display:none; }
+ .workspace-insights { gap:6px; }
+ .workspace-insight { padding:8px;gap:6px; }
+ .insight-icon { display:none; }
+ .workspace-insight small { min-height:24px; }
+ .products-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .product-info { padding:10px; }
+ .product-main-price { font-size:15px; }
+}
+@media screen and (max-height:780px) and (min-width:761px) {
+ .cart-header { padding:15px 18px; }
+ .cart-title { font-size:19px;margin-bottom:2px; }
+ .cart-checkout-section { padding:12px 16px;gap:8px; }
+ .summary-lines { gap:6px; }
+ .summary-row.total-row { padding-top:8px; }
+ .total-amount { font-size:23px; }
+ .pay-btn { min-height:46px;padding:5px 3px;gap:2px; }
+ .pay-btn>span { font-size:16px; }
+ .btn-checkout { min-height:47px; }
+ .tender-drawer { padding:8px;gap:6px; }
+ .cart-items { padding:10px 15px; }
+}
+@media screen and (max-width:760px) {
+ .app-layout { display:block;padding-bottom:calc(72px + env(safe-area-inset-bottom)); }
+ .workspace-nav { display:none;position:fixed;inset:0 auto calc(72px + env(safe-area-inset-bottom)) 0;width:254px;z-index:60;padding:24px 17px 16px;height:auto;gap:17px;box-shadow:18px 0 60px #18382f30; }
+ body.mobile-menu-open .workspace-nav { display:flex; }
+ .workspace-logo { text-align:left;padding:0 10px; }
+ .workspace-logo small { margin-top:6px; }
+ .workspace-menu-close { display:block;position:absolute;right:16px;top:28px;color:#b8ccb8;background:#ffffff0b;border-radius:8px;padding:8px 10px;min-height:40px;font-size:10px; }
+ body.mobile-menu-open .workspace-scrim { display:block;position:fixed;inset:0;z-index:55;background:#102b245c;backdrop-filter:blur(3px); }
+ .workspace-nav .topbar-actions { display:flex!important;max-height:none;overflow:visible;order:0;gap:6px; }
+ .workspace-nav .btn-nav,.workspace-sell { flex-direction:row;justify-content:flex-start;gap:14px;padding:12px 14px;min-height:45px;font-size:12px;border-radius:10px;flex:0 0 auto; }
+ .workspace-nav .btn-nav { flex-basis:auto; }
+ .workspace-account .user-pill { flex-direction:row;width:100%;gap:10px;justify-content:flex-start; }
+ .workspace-account .user-details { display:flex;min-width:0;flex:1; }
+ .workspace-account .user-name { color:#d4e3ce;font-size:11px; }
+ .workspace-account .user-role-badge { font-size:9px; }
+ .workspace-account .btn-switch-user { min-width:48px;min-height:44px; }
+ .catalog-panel { height:100%; }
+ .topbar { padding:12px 15px;gap:10px;min-height:0; }
+ .brand-section { min-width:0;flex:1;order:0; }
+ .brand-title { font-size:13px; }
+ .brand-subtitle { font-size:9px; }
+ .brand-icon { width:34px;height:34px;font-size:18px; }
+ .store-badge { font-size:8px; }
+ .mobile-menu-button { display:flex;align-items:center;justify-content:center;background:#eef3e6;border:1px solid #dce5d2;border-radius:10px;min-width:56px;min-height:44px;padding:9px;color:#567c3c;font-size:11px;order:1; }
+ .mode-switcher-container { order:2;width:100%; }
+ .mode-switch-btn { min-height:41px;font-size:11px;flex:1;justify-content:center; }
+ .workspace-header-meta { display:none; }
+ .catalog-body { padding:18px 15px;gap:14px; }
+ .workspace-heading h1 { font-size:29px;margin:6px 0; }
+ .workspace-eyebrow { font-size:8px;letter-spacing:1.3px; }
+ .workspace-heading p { font-size:10px; }
+ .workspace-shortcut { display:none; }
+ .workspace-insights { gap:7px; }
+ .workspace-insight { padding:10px 8px;gap:0;flex-direction:column;align-items:flex-start;border-radius:12px; }
+ .insight-icon { display:none; }
+ .workspace-insight small { font-size:8px;min-height:25px;line-height:1.5; }
+ .workspace-insight strong { font-size:20px; }
+ .mode-banner { padding:9px 11px;font-size:9px;gap:5px; }
+ .mode-banner .btn-nav { min-height:32px; }
+ .search-input { font-size:16px;padding-right:12px;min-height:49px; }
+ .scanner-badge { display:none; }
+ .expiry-filter-row { flex-wrap:nowrap;justify-content:flex-start; }
+ .expiry-filter-row select { min-height:44px;font-size:14px;width:auto;flex:1; }
+ .category-chip { min-height:44px;font-size:11px;padding:10px 14px; }
+ .workspace-catalog-label h2 { font-size:12px; }
+ .workspace-catalog-label>span { font-size:9px; }
+ .products-grid { grid-template-columns:repeat(2,minmax(0,1fr));gap:10px; }
+ .product-image-wrap { height:114px;margin:6px 6px 0; }
+ .product-info { padding:10px; }
+ .product-title { font-size:12px;min-height:36px; }
+ .product-retail-unit,.product-wholesale-unit { font-size:8px; }
+ .product-dates { font-size:9px; }
+ .product-main-price { font-size:17px; }
+ .product-sub-price { font-size:8px; }
+ .btn-add-cart { width:44px;height:44px;min-width:44px;min-height:44px; }
+ .edit-btn-quick { width:34px;height:34px;opacity:1; }
+ .cart-panel { display:none;height:100%;overflow-y:auto;border:0; }
+ body.mobile-bill-open .catalog-panel { display:none; }
+ body.mobile-bill-open .cart-panel { display:flex; }
+ .cart-header { padding:21px 18px 17px; }
+ .cart-title { font-size:26px; }
+ .cart-items { flex:none;min-height:180px;padding:16px 18px;overflow:visible; }
+ .cart-empty { min-height:200px; }
+ .cart-checkout-section { margin-top:auto;padding:18px;gap:13px; }
+ .cart-item-row { grid-template-columns:40px minmax(0,1fr) auto; }
+ .cart-item-name { font-size:12px; }
+ .cart-item-rate { font-size:10px; }
+ .cart-item-tier-toggle { font-size:9px; }
+ .stepper-btn,.btn-remove-item { min-width:44px;min-height:44px; }
+ .stepper-qty { min-width:30px;font-size:12px; }
+ .summary-row { font-size:12px; }
+ .total-amount { font-size:28px; }
+ .payment-selector { grid-template-columns:repeat(4,minmax(0,1fr)); }
+ .pay-btn { min-height:61px;font-size:10px; }
+ .quick-cash-row { gap:6px; }
+ .btn-quick-cash { min-height:44px;font-size:11px;flex:1 1 40%; }
+ .cash-input { font-size:16px;min-height:47px; }
+ .change-badge { font-size:11px; }
+ .btn-checkout { min-height:57px;font-size:14px; }
+ .mobile-tabs { gap:8px;padding:9px 15px calc(9px + env(safe-area-inset-bottom));background:#fdfefb;border-color:#dce5d0;z-index:40; }
+ .mobile-tabs button { min-height:52px;border-radius:12px;background:#f0f4e8;color:#7d9368;font-size:12px; }
+ .mobile-tabs button[aria-pressed="true"] { background:#284f36;color:#f2f8ea; }
+ #mobileBillSummary { font-size:9px;margin-top:4px; }
+ .modal-overlay { padding:10px; }
+ .modal-top { padding:16px; }
+ .modal-heading { font-size:16px; }
+ .modal-window { border-radius:18px; }
+ .modal-content { padding:16px; }
+ .form-grid { grid-template-columns:minmax(0,1fr);gap:15px; }
+ .form-input,.form-select,.form-textarea { font-size:16px;min-height:46px; }
+ .form-label { font-size:12px; }
+ .btn-close-modal { min-width:44px;min-height:44px; }
+ .btn-nav,.btn-modal-save,.btn-modal-cancel { min-height:44px; }
+ .modal-actions { flex-wrap:wrap; }
+ .modal-actions>div { flex-wrap:wrap; }
+ .metrics-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .metric-card { padding:13px; }
+ .metric-val { font-size:22px; }
+ .returns-heading { padding:16px; }
+ .returns-heading h2 { font-size:18px; }
+ .returns-content { padding:13px; }
+ .toast-box { bottom:calc(89px + env(safe-area-inset-bottom)); }
+ .login-overlay { display:none;grid-template-columns:1fr;padding:30px 22px;align-content:center;gap:30px; }
+ .workspace-login-story { display:none; }
+ .login-card { width:min(390px,100%);margin:0 auto;padding:26px 22px;background:#fff;border:1px solid #dfe6d3;border-radius:23px;box-shadow:0 16px 55px #203d2410; }
+ .login-logo { margin:0 0 19px; }
+ .login-welcome { font-size:30px; }
+ .login-card .form-input { font-size:16px;min-height:49px; }
+ .login-card>p { font-size:12px; }
+}
+@media screen and (max-width:360px) {
+ .catalog-body { padding:16px 11px; }
+ .product-info { padding:8px; }
+ .product-image-wrap { height:98px; }
+ .product-main-price { font-size:15px; }
+ .cart-item-row { grid-template-columns:minmax(0,1fr) auto; }
+ .cart-item-img { display:none; }
+ .payment-selector { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media screen and (prefers-reduced-motion:reduce) { *,*:before,*:after { animation:none!important;transition:none!important;scroll-behavior:auto!important; } }
+@media print { .workspace-nav,.workspace-scrim,.workspace-heading,.workspace-insights { display:none!important; } }
+
+@media screen {
+ .workspace-nav .btn-nav,.workspace-sell { font-size:11px; }
+ .product-title { font-size:13px; }
+ .product-retail-unit,.product-wholesale-unit,.product-dates,.product-sub-price { font-size:10px; }
+ .workspace-insight small { font-size:10px; }
+ .workspace-eyebrow,.workspace-payment-label { font-size:10px; }
+ .search-input { font-size:14px; }
+ .category-chip,.mode-switch-btn { font-size:12px; }
+ .cart-item-name { font-size:13px; }
+ .cart-item-rate,.cart-badge,.cart-sale-type-pill { font-size:11px; }
+ .pay-btn,.btn-quick-cash { font-size:10px; }
+ .custom-table { font-size:12px; }
+}
+@media screen and (max-width:760px) {
+ .search-input { font-size:16px; }
+ .workspace-insight small { font-size:9px; }
+ .workspace-eyebrow,.workspace-payment-label { font-size:9px; }
+ .product-title { font-size:12px; }
+ .product-retail-unit,.product-wholesale-unit,.product-dates,.product-sub-price { font-size:9px; }
+}
+@media screen {
+ #prodImageUrl { display:none; }
+ .modal-actions>div { margin-left:auto; }
+}
+@media screen and (max-height:600px) and (min-width:761px) {
+ .cart-panel { overflow-y:auto; }
+ .cart-items { flex:none;min-height:100px;overflow:visible; }
+ .cart-header { flex-shrink:0; }
+ .cart-checkout-section { margin-top:auto; }
+}
+@media screen { [hidden] { display:none!important; } }
+@media screen {
+ .neutral-shopping-logo svg { display:block;width:38px;height:38px;margin:auto; }
+ .workspace-logo.neutral-shopping-logo { width:58px;height:58px;display:grid;place-items:center;align-self:center;border:1px solid #c8e79f33;border-radius:18px;background:#c8e79f0c;color:#c8ed8d; }
+ .login-platform-brand.neutral-shopping-logo { width:78px;height:78px;display:grid;place-items:center;border:1px solid #c8e79f33;border-radius:23px;background:#c8e79f0c;color:#c8ed8d; }
+ .login-platform-brand.neutral-shopping-logo svg { width:44px;height:44px; }
+ #loginLogoIcon svg { width:28px;height:28px; }
+}
 </style>
 </head>
 <body class="mode-retail">
 
+  <button type="button" class="workspace-scrim" id="workspaceScrim" aria-label="Close navigation"></button>
   <div class="app-layout">
+    <aside class="workspace-nav" aria-label="Main navigation">
+      <div class="workspace-logo neutral-shopping-logo" role="img" aria-label="Shopping POS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h2l2.4 11.5a2 2 0 0 0 2 1.5h8.8a2 2 0 0 0 2-1.6L22 7H6"/><circle cx="10" cy="21" r="1"/><circle cx="19" cy="21" r="1"/></svg></div>
+      <button type="button" id="closeWorkspaceMenu" class="workspace-menu-close" aria-label="Close navigation">Close ×</button>
+      <nav id="workspaceNavigation" aria-label="Shop tools"><button type="button" class="workspace-sell nav-active" id="workspaceSell" aria-current="page"><span class="nav-icon">▦</span><span>Sell</span></button></nav>
+      <div class="workspace-account" id="workspaceAccount"></div>
+    </aside>
     <!-- Left Catalog Panel -->
     <main class="catalog-panel">
       <!-- Top Navigation -->
@@ -1358,10 +1820,10 @@
           <div class="brand-icon" id="headerStoreIcon">🛒</div>
           <div>
             <div class="brand-title">
-              <span id="headerStoreName">PakBazaar Supermarket</span>
+              <span id="headerStoreName">My Shop</span>
               <span class="store-badge" id="headerBranchBadge">POS-01</span>
             </div>
-            <div class="brand-subtitle" id="headerTagline">Wholesale & Retail Management</div>
+            <div class="brand-subtitle" id="headerTagline">Point of sale</div>
           </div>
         </div>
 
@@ -1403,10 +1865,20 @@
             <button class="btn-switch-user" id="btnSwitchUser" title="Lock Register / Switch Shift">Lock</button>
           </div>
         </div>
+        <div class="workspace-header-meta"><span class="workspace-date" id="workspaceDate"></span><div id="workspaceConnection"></div></div>
       </header>
 
       <!-- Catalog Main Area -->
       <div class="catalog-body">
+        <section class="workspace-heading" aria-label="Sales overview">
+          <div><span class="workspace-eyebrow">YOUR DAILY WORKSPACE</span><h1>Sales counter<span class="heading-dot">.</span></h1><p>Find a product. Build a bill. Keep things moving.</p></div>
+          <div class="workspace-shortcut">SCAN <kbd>↵ Enter</kbd></div>
+        </section>
+        <section class="workspace-insights" aria-label="Catalog overview">
+          <div class="workspace-insight"><span class="insight-icon">▦</span><div><small>In your catalog</small><strong id="workspaceProductCount">—</strong></div></div>
+          <div class="workspace-insight"><span class="insight-icon amber">↘</span><div><small>Running low</small><strong id="workspaceLowCount">—</strong></div></div>
+          <div class="workspace-insight"><span class="insight-icon purple">◷</span><div><small>Expiring in 30 days</small><strong id="workspaceExpiryCount">—</strong></div></div>
+        </section>
         <!-- Active Mode Banner -->
         <div class="mode-banner retail" id="modeBanner">
           <div>
@@ -1421,14 +1893,16 @@
         <div class="search-row">
           <div class="search-box">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            <input class="search-input" id="searchInput" placeholder="Search products by item name, category or barcode (Press Enter to scan)..." autofocus />
-            <span class="scanner-badge">Barcode Scanner [Enter]</span>
+            <input class="search-input" id="searchInput" placeholder="Search products or scan a barcode…" aria-label="Search products or barcode" autofocus />
+            <span class="scanner-badge">SCAN <kbd>↵</kbd></span>
           </div>
         </div>
 
+        <div class="expiry-filter-row"><label for="expiryFilter">Expiry</label><select class="form-select" id="expiryFilter"><option value="all">All products</option><option value="soon">Expires within 30 days</option><option value="expired">Expired</option><option value="undated">No expiry date</option></select></div>
         <!-- Categories Bar -->
         <div class="categories-bar" id="categoriesBar"></div>
 
+        <div class="workspace-catalog-label"><h2>Product collection</h2><span id="workspaceResultCount" aria-live="polite">Ready to browse</span></div>
         <!-- Product Cards Grid -->
         <div class="products-grid" id="productsGrid"></div>
       </div>
@@ -1439,7 +1913,7 @@
       <!-- Cart Header -->
       <div class="cart-header">
         <div class="cart-title-row">
-          <h2 class="cart-title">Order Bill</h2>
+          <h2 class="cart-title">Current order<span class="heading-dot">.</span></h2>
           <span class="cart-badge" id="cartBadgeCount">0 items</span>
           <span class="cart-sale-type-pill retail" id="cartSaleTypePill">Retail</span>
         </div>
@@ -1452,8 +1926,8 @@
       <div class="cart-items" id="cartItemsList">
         <div class="cart-empty">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-          <p style="font-weight: 700; color: var(--ink); margin-bottom: 2px;">Cart is empty</p>
-          <p style="font-size: 12px;">Click a product or scan barcode to begin.</p>
+          <p style="font-weight: 700; color: var(--ink); margin-bottom: 2px;">Your next sale starts here</p>
+          <p style="font-size: 12px;">Choose a product or scan its barcode to build your order.</p>
         </div>
       </div>
 
@@ -1474,6 +1948,7 @@
           </div>
         </div>
 
+        <div class="workspace-payment-label">PAYMENT METHOD</div>
         <!-- Payment Method Selection -->
         <div>
           <div class="payment-selector">
@@ -1577,13 +2052,24 @@
               <label class="form-label">Store Icon</label>
               <input class="form-input" id="setStoreIcon" placeholder="🛒" maxlength="4" />
             </div>
+            <div class="form-group full receipt-design-heading"><h4>Receipt design</h4><p class="form-hint">Choose a layout and preview it before saving. Saved separately for this shop.</p></div>
+            <div class="form-group"><label class="form-label" for="setReceiptTemplate">Layout</label><select class="form-select" id="setReceiptTemplate"><option>Classic</option><option>Compact</option><option>Modern</option></select></div>
+            <div class="form-group"><label class="form-label" for="setReceiptAlign">Header alignment</label><select class="form-select" id="setReceiptAlign"><option value="center">Centered</option><option value="left">Left aligned</option></select></div>
+            <div class="form-group"><label class="form-label" for="setReceiptFont">Font</label><select class="form-select" id="setReceiptFont"><option value="Mono">Monospace</option><option value="Sans">Sans serif</option></select></div>
+            <div class="form-group"><label class="form-label" for="setReceiptFontSize">Text size (9–14 px)</label><input class="form-input" id="setReceiptFontSize" type="number" min="9" max="14" step="1" value="11"></div>
+            <div class="form-group full receipt-checks">
+              <label><input id="setReceiptShowAddress" type="checkbox" checked> Show address</label>
+              <label><input id="setReceiptShowPhone" type="checkbox" checked> Show phone</label>
+              <label><input id="setReceiptShowDates" type="checkbox"> Show item manufacturing / expiry dates</label>
+            </div>
+            <div class="form-group full"><button class="btn-nav primary" type="button" id="btnPreviewReceiptDesign">Preview receipt design</button></div>
             <div class="form-group full">
               <label class="form-label">Receipt / Invoice Footer Note</label>
               <textarea class="form-textarea" id="setReceiptFooter" rows="2" placeholder="e.g. JazakAllah Khair for shopping with us!"></textarea>
             </div>
           </div>
           <div class="modal-actions" style="justify-content: space-between;">
-            <button type="button" class="btn-modal-cancel" style="color: var(--danger);" onclick="resetDemoData()">Reset All Demo Data</button>
+
             <div style="display: flex; gap: 8px;">
               <button type="button" class="btn-modal-cancel" onclick="closeModal('settingsModal')">Cancel</button>
               <button type="submit" class="btn-modal-save">Save Settings</button>
@@ -1598,12 +2084,12 @@
   <div class="modal-overlay" id="staffModal">
     <div class="modal-window">
       <div class="modal-top">
-        <h3 class="modal-heading">Staff Management</h3>
+        <h3 class="modal-heading">Shop account</h3>
         <button class="btn-close-modal" onclick="closeModal('staffModal')">×</button>
       </div>
       <div class="modal-content">
         <div style="background: var(--slate-50); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--slate-200); margin-bottom: 16px;">
-          <h4 style="font-size: 13.5px; font-weight: 700; margin-bottom: 10px;">Add New Cashier / Admin</h4>
+          <h4 style="font-size: 13.5px; font-weight: 700; margin-bottom: 10px;">Shop access</h4>
           <form id="addStaffForm" class="form-grid">
             <div class="form-group">
               <label class="form-label">Full Name *</label>
@@ -1631,7 +2117,7 @@
             <tr>
               <th>Staff Name</th>
               <th>Role</th>
-              <th>PIN Code</th>
+              <th>Sign-in method</th>
               <th>Status</th>
               <th style="text-align: right;">Action</th>
             </tr>
@@ -1717,9 +2203,18 @@
               <input class="form-input" id="prodEmoji" placeholder="e.g. 🥛" maxlength="4" />
             </div>
 
+            <div class="form-group">
+              <label class="form-label" for="prodManufacturingDate">Manufacturing date (optional)</label>
+              <input class="form-input" id="prodManufacturingDate" type="date" min="0001-01-01" max="9999-12-31" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="prodExpiryDate">Expiry date (optional)</label>
+              <input class="form-input" id="prodExpiryDate" type="date" min="0001-01-01" max="9999-12-31" />
+            </div>
+            <p class="form-hint form-group full">One date pair per product. For multiple batches with different dates, batch inventory is needed. Expired items cannot be sold.</p>
             <!-- Custom Image Upload Section -->
             <div class="form-group full">
-              <label class="form-label">Product Image (Upload File or URL)</label>
+              <label class="form-label">Product photo</label>
               <div class="image-picker-zone">
                 <div class="image-preview-box" id="imagePreviewContainer">
                   <span style="font-size: 26px;" id="imagePreviewFallback">🖼️</span>
@@ -1730,7 +2225,7 @@
                     <div class="file-input-wrapper">
                       <button type="button" class="btn-upload-label">
                         <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                        Upload Local File
+                        Choose photo
                       </button>
                       <input type="file" id="prodImageFile" accept="image/*" />
                     </div>
@@ -1854,17 +2349,23 @@
   </div>
 
   <div class="login-overlay" id="loginOverlay" style="display:grid">
+    <section class="workspace-login-story" aria-label="Welcome to your POS">
+      <div class="login-platform-brand neutral-shopping-logo" role="img" aria-label="Shopping POS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h2l2.4 11.5a2 2 0 0 0 2 1.5h8.8a2 2 0 0 0 2-1.6L22 7H6"/><circle cx="10" cy="21" r="1"/><circle cx="19" cy="21" r="1"/></svg></div>
+      <div class="login-story-copy"><span class="workspace-eyebrow">LESS FRICTION. MORE BUSINESS.</span><h1>A better day<br>at the counter<span>.</span></h1><p>Your products, your customers, your shop.<br>Everything you need to keep business moving.</p></div>
+      <div class="login-story-footer"><span>Simple. Organized. Connected.</span><span>One connected workspace ↗</span></div>
+    </section>
     <div class="login-card">
-      <div class="login-logo" id="loginLogoIcon">🛒</div>
-      <h2 id="loginStoreTitle">PakBazaar POS</h2>
-      <p style="margin:12px 0;color:#64748b">Sign in with your staff email and password.</p>
+      <div class="login-logo" id="loginLogoIcon" role="img" aria-label="Shopping POS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h2l2.4 11.5a2 2 0 0 0 2 1.5h8.8a2 2 0 0 0 2-1.6L22 7H6"/><circle cx="10" cy="21" r="1"/><circle cx="19" cy="21" r="1"/></svg></div>
+      <div class="login-shop-name" id="loginStoreTitle" hidden></div>
+      <h2 class="login-welcome">Welcome back.</h2>
+      <p style="margin:12px 0;color:#64748b">Sign in to open your shop workspace.</p>
       <form id="backendLoginForm" style="text-align:left">
         <label class="form-label" for="loginEmail">Email</label>
-        <input class="form-input" id="loginEmail" type="email" autocomplete="username" required>
+        <input class="form-input" id="loginEmail" placeholder="you@example.com" type="email" autocomplete="username" required>
         <label class="form-label" for="loginPassword" style="margin-top:12px">Password</label>
-        <input class="form-input" id="loginPassword" type="password" autocomplete="current-password" required>
+        <input class="form-input" id="loginPassword" placeholder="Enter your password" type="password" autocomplete="current-password" required>
         <p id="loginError" role="alert" style="color:#b91c1c;margin:12px 0"></p>
-        <button class="btn-modal-save" id="loginSubmit" type="submit" style="width:100%">Sign in</button>
+        <button class="btn-modal-save" id="loginSubmit" type="submit" style="width:100%">Open workspace <span aria-hidden="true">↗</span></button>
       </form>
     </div>
   </div>
@@ -1886,7 +2387,7 @@
           <label class="form-label" for="returnsReason" style="margin-top:14px">Reason</label><textarea class="form-input" id="returnsReason" rows="2" maxlength="500" placeholder="Why is the customer returning these items?"></textarea>
         </section>
       </fieldset>
-      <section class="return-section" id="returnsSettlement" hidden><h3>4. Review the settlement</h3><div id="returnsAmounts"></div><p class="return-muted">Returned items use their original value and allocated tax. Credit returns reduce outstanding account debt first. Replacement items use current prices and tax.</p></section>
+      <section class="return-section" id="returnsSettlement" hidden><h3>4. Review the settlement</h3><div id="returnsAmounts"></div><p class="return-muted">Refund values come from the original receipt. Replacements use current prices and tax. Review the settlement before confirming.</p></section>
       <p id="returnsMessage" role="status" aria-live="polite"></p>
       <div class="returns-actions"><button type="button" class="btn-nav primary" id="returnsPreview">Preview settlement</button><button type="button" class="btn-nav" id="returnsEdit">Edit selections</button><button type="button" class="btn-modal-save" id="returnsConfirm" disabled>Confirm & record return</button></div>
     </div>
@@ -1917,8 +2418,8 @@
   <script>
     /* Default initial dataset for Pakistani Supermarket */
     const DEFAULT_STORE_SETTINGS = {
-      storeName: 'PakBazaar Wholesale & Retail',
-      tagline: 'Wholesale & Retail Supermarket',
+      storeName: 'My Shop',
+      tagline: 'Point of sale',
       branch: 'Gulberg III, Lahore · Register 01',
       address: 'Main Commercial Market, Gulberg III, Lahore, Pakistan',
       phone: '+92 42 35712345',
@@ -1926,8 +2427,10 @@
       currency: 'Rs.',
       taxRate: 0,
       receiptWidth: '80mm',
+      receiptTemplate:'Classic',receiptFont:'Mono',receiptFontSize:11,receiptHeaderAlign:'center',
+      receiptShowAddress:true,receiptShowPhone:true,receiptShowItemDates:false,
       icon: '🛒',
-      footer: 'JazakAllah Khair for shopping at PakBazaar!\nExchanges accepted within 3 days with original bill.'
+      footer: 'Thank you for shopping with us!\nExchanges accepted within 3 days with original bill.'
     };
 
     /* State belongs to the signed-in database account. */
@@ -2049,7 +2552,7 @@
         currentUser.role==='Admin'?api('/api/staff'):Promise.resolve([])
       ]);
       products=prods.map(p=>({...p,cat:p.category,stock:Number(p.stock),retail_price:Number(p.retail_price),wholesale_price:Number(p.wholesale_price)}));
-      storeSettings={storeName:settings.store_name,tagline:settings.tagline||'',branch:settings.branch||'',address:settings.address||'',phone:settings.phone||'',taxId:settings.tax_id||'',currency:settings.currency,taxRate:Number(settings.tax_rate),receiptWidth:settings.receipt_width,icon:settings.icon||'🛒',footer:settings.footer||''};
+      storeSettings={storeName:settings.store_name,tagline:settings.tagline||'',branch:settings.branch||'',address:settings.address||'',phone:settings.phone||'',taxId:settings.tax_id||'',currency:settings.currency,taxRate:Number(settings.tax_rate),receiptWidth:settings.receipt_width,receiptTemplate:settings.receipt_template||'Classic',receiptFont:settings.receipt_font||'Mono',receiptFontSize:Number(settings.receipt_font_size||11),receiptHeaderAlign:settings.receipt_header_align||'center',receiptShowAddress:settings.receipt_show_address!==false,receiptShowPhone:settings.receipt_show_phone!==false,receiptShowItemDates:settings.receipt_show_item_dates===true,icon:settings.icon||'🛒',footer:settings.footer||''};
       creditRecords=credits.map(c=>({...c,id:c.customer_id,balance:Number(c.balance)}));
       salesHistory=sales.map(x=>normalSale(x)); customers=custs; staffList=staff;
       const select=document.getElementById('creditCustomerId');
@@ -2087,13 +2590,13 @@
 
     /* Branding & UI Sync */
     function applyStoreBranding() {
-      document.title = `${esc(storeSettings.storeName)} — Wholesale & Retail POS`;
+      document.title = 'POS — Shop Workspace';
       document.getElementById('headerStoreName').textContent = storeSettings.storeName;
       document.getElementById('headerStoreIcon').textContent = storeSettings.icon || '🛒';
       document.getElementById('headerBranchBadge').textContent = storeSettings.branch || 'POS-01';
       document.getElementById('headerTagline').textContent = storeSettings.tagline || 'Wholesale & Retail';
       document.getElementById('loginStoreTitle').textContent = storeSettings.storeName;
-      document.getElementById('loginLogoIcon').textContent = storeSettings.icon || '🛒';
+      document.getElementById('loginLogoIcon').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h2l2.4 11.5a2 2 0 0 0 2 1.5h8.8a2 2 0 0 0 2-1.6L22 7H6"/><circle cx="10" cy="21" r="1"/><circle cx="19" cy="21" r="1"/></svg>';
       document.documentElement.style.setProperty('--receipt-width', storeSettings.receiptWidth || '80mm');
       document.getElementById('taxLabel').textContent = `Tax (${storeSettings.taxRate}%)`;
     }
@@ -2131,6 +2634,23 @@
       renderProducts();
     }
 
+    function shopToday() {
+      const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Karachi',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+      const part=type=>parts.find(p=>p.type===type).value;
+      return `${part('year')}-${part('month')}-${part('day')}`;
+    }
+    function displayProductDate(value) { return value?String(value).slice(0,10).split('-').reverse().join('/'):'—'; }
+    function expiryState(product) {
+      if(!product.expiry_date) return {kind:'undated',label:'No expiry date'};
+      const today=shopToday();
+      const days=Math.round((Date.parse(product.expiry_date+'T00:00:00Z')-Date.parse(today+'T00:00:00Z'))/86400000);
+      if(days<0) return {kind:'expired',label:'Expired · '+displayProductDate(product.expiry_date)};
+      if(days===0) return {kind:'soon',label:'Expires today'};
+      if(days<=30) return {kind:'soon',label:'Expires in '+days+' days'};
+      return {kind:'valid',label:'EXP '+displayProductDate(product.expiry_date)};
+    }
+    document.getElementById('expiryFilter').addEventListener('change',renderProducts);
+
     /* Product Cards Rendering */
     function renderProducts() {
       const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
@@ -2141,11 +2661,12 @@
         const matchesCat = (currentCategory === 'All' || cat === currentCategory);
         const matchesQuery = p.name.toLowerCase().includes(q) || 
                              (p.barcode && p.barcode.includes(q));
-        return matchesCat && matchesQuery;
+        const expiryFilter=document.getElementById('expiryFilter').value;
+        return matchesCat && matchesQuery && (expiryFilter==='all' || expiryState(p).kind===expiryFilter);
       });
 
       if (!filtered.length) {
-        grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--slate-400);">No matching products found.</div>`;
+        grid.innerHTML = `<div class="workspace-empty"><span class="workspace-empty-icon">▦</span><h3>${products.length?'No matching products':'A fresh start for your shop'}</h3><p>${products.length?'Try a different search, category, or expiry filter.':'Add your first product to start building orders.'}</p>${currentUser.role==='Admin'&&!products.length?'<button type="button" class="btn-nav primary" onclick="document.getElementById(&quot;btnOpenAddProduct&quot;).click()">+ Add your first product</button>':''}</div>`;
         return;
       }
 
@@ -2160,7 +2681,7 @@
       document.getElementById('btnOpenStock').style.display=isAdmin?'inline-flex':'none';
 
         return `
-          <div class="product-card" onclick="addToCart(${p.id})">
+          <div class="product-card" tabindex="0" aria-label="Add ${esc(p.name)} to order" onclick="addToCart(${p.id})" onkeydown="if(event.target===this && (event.key==='Enter' || event.key===' ')){event.preventDefault();addToCart(${p.id});}">
             <div class="product-image-wrap">
               ${p.image 
                 ? `<img src="${esc(/^https?:\/\//i.test(p.image || '') ? p.image : '')}" alt="${esc(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
@@ -2185,6 +2706,10 @@
                   <span class="product-wholesale-unit">Bulk: ${p.wholesale_unit || 'Carton of ' + packSize}</span>
                 </div>
               </div>
+              <div class="product-dates">
+                ${p.manufacturing_date?`<span>MFG ${esc(displayProductDate(p.manufacturing_date))}</span>`:''}
+                <span class="expiry-label expiry-${expiryState(p).kind}">${esc(expiryState(p).label)}</span>
+              </div>
               <div class="product-bottom">
                 <div class="price-display-block">
                   ${isWholesale ? `
@@ -2195,7 +2720,7 @@
                     <span class="product-sub-price">Bulk: ${formatMoney(p.wholesale_price)}/pc</span>
                   `}
                 </div>
-                <button class="btn-add-cart" aria-label="Add">+</button>
+                <button class="btn-add-cart" aria-label="Add" ${expiryState(p).kind==='expired'?'disabled title="Expired product"':''}>+</button>
               </div>
             </div>
           </div>
@@ -2207,6 +2732,7 @@
     function addToCart(prodId) {
       const prod = products.find(x => x.id === prodId);
       if (!prod) return;
+      if(expiryState(prod).kind==='expired') { showToast('This product has expired and cannot be sold');return; }
 
       const isWholesale = activeSaleMode === 'Wholesale';
       const packSize = isWholesale ? (prod.wholesale_pack_size || 12) : 1;
@@ -2335,8 +2861,8 @@
         listContainer.innerHTML = `
           <div class="cart-empty">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-            <p style="font-weight: 700; color: var(--ink); margin-bottom: 2px;">Cart is empty</p>
-            <p style="font-size: 12px;">Click a product or scan barcode to begin.</p>
+            <p style="font-weight: 700; color: var(--ink); margin-bottom: 2px;">Your next sale starts here</p>
+            <p style="font-size: 12px;">Choose a product or scan its barcode to build your order.</p>
           </div>
         `;
       } else {
@@ -2352,9 +2878,9 @@
               </div>
               <span class="cart-item-rate">${formatMoney(item.price)} per pack</span>
               <div class="cart-item-stepper">
-                <button class="stepper-btn" onclick="changeCartQty('${item.cartKey}', -1)">−</button>
+                <button class="stepper-btn" aria-label="Decrease quantity" onclick="changeCartQty('${item.cartKey}', -1)">−</button>
                 <span class="stepper-qty">${item.qty}</span>
-                <button class="stepper-btn" onclick="changeCartQty('${item.cartKey}', 1)">+</button>
+                <button class="stepper-btn" aria-label="Increase quantity" onclick="changeCartQty('${item.cartKey}', 1)">+</button>
               </div>
             </div>
             <div class="cart-item-end">
@@ -2479,24 +3005,30 @@
     document.getElementById('btnCheckout').parentElement.appendChild(recoverButton);
 
         /* Thermal Receipt & Wholesale Invoice Preview */
-    function showReceiptPreview(sale) {
-      document.documentElement.style.setProperty('--receipt-width', storeSettings.receiptWidth || '80mm');
+    function showReceiptPreview(sale, receiptSettings=storeSettings, isDesignPreview=false) {
+      document.documentElement.style.setProperty('--receipt-width', receiptSettings.receiptWidth || '80mm');
       const container = document.getElementById('receiptContainer');
       const isWholesale = sale.saleType === 'Wholesale';
+      container.dataset.template=['Classic','Compact','Modern'].includes(receiptSettings.receiptTemplate)?receiptSettings.receiptTemplate:'Classic';
+      container.style.fontFamily=receiptSettings.receiptFont==='Sans'?'Arial, sans-serif':'ui-monospace, monospace';
+      container.style.fontSize=Math.max(9,Math.min(14,Number(receiptSettings.receiptFontSize)||11))+'px';
+      container.style.setProperty('--receipt-header-align',receiptSettings.receiptHeaderAlign==='left'?'left':'center');
+      const receiptMoney=amount=>`${esc(sale.currency||receiptSettings.currency)} ${Number(amount||0).toFixed(2)}`;
 
       document.getElementById('receiptModalHeading').textContent = isWholesale ? 'Wholesale Commercial Invoice' : 'Retail Sales Receipt';
 
       container.innerHTML = `
+        ${isDesignPreview?'<div class="receipt-sample">DESIGN PREVIEW · NOT A SALE</div>':''}
         <div class="receipt-header">
-          <div class="receipt-store-name">${esc(storeSettings.storeName)}</div>
-          <div>${esc(storeSettings.tagline)}</div>
-          <div>${esc(storeSettings.address)}</div>
-          <div>Tel: ${esc(storeSettings.phone)}</div>
-          ${storeSettings.taxId ? `<div>${esc(storeSettings.taxId)}</div>` : ''}
+          <div class="receipt-store-name">${esc(receiptSettings.storeName)}</div>
+          <div>${esc(receiptSettings.tagline)}</div>
+          ${receiptSettings.receiptShowAddress!==false?`<div>${esc(receiptSettings.address)}</div>`:''}
+          ${receiptSettings.receiptShowPhone!==false?`<div>Tel: ${esc(receiptSettings.phone)}</div>`:''}
+          ${receiptSettings.taxId ? `<div>${esc(receiptSettings.taxId)}</div>` : ''}
           <div style="margin-top: 6px; font-weight: 800; font-size: 13px;">
             ${isWholesale ? '📦 WHOLESALE COMMERCIAL INVOICE (تھوک بل)' : '🛍️ RETAIL SALES RECEIPT'}
           </div>
-          <div>Invoice #${sale.receiptNo}</div>
+          <div>Invoice #${esc(sale.receiptNo)}</div>
           <div>Date: ${esc(sale.formattedDate || '')} ${esc(sale.formattedTime || '')}</div>
           <div>Cashier: <b>${esc(sale.cashier)}</b></div>
           ${sale.customer_name ? `<div>Buyer: <b>${esc(sale.customer_name)}</b> (${esc(sale.customer_phone || '')})</div>` : ''}
@@ -2518,7 +3050,8 @@
               <tr>
                 <td>
                   ${esc(item.name)}<br>
-                  <span style="font-size: 9.5px; color: #555;">[${item.pack_name || (item.tier === 'wholesale' ? 'Carton' : 'Piece')}]</span>
+                  <span class="receipt-line-meta">[${esc(item.pack_name || (String(item.tier).toLowerCase() === 'wholesale' ? 'Carton' : 'Piece'))}]</span>
+                  ${receiptSettings.receiptShowItemDates && (item.manufacturing_date||item.expiry_date)?`<div class="receipt-line-meta">${item.manufacturing_date?'MFG '+esc(displayProductDate(item.manufacturing_date)):''}${item.manufacturing_date&&item.expiry_date?' · ':''}${item.expiry_date?'EXP '+esc(displayProductDate(item.expiry_date)):''}</div>`:''}
                 </td>
                 <td style="text-align: center;">${item.qty}</td>
                 <td style="text-align: right;">${item.price.toFixed(2)}</td>
@@ -2530,26 +3063,34 @@
 
         <hr class="receipt-divider">
 
-        <div class="receipt-row"><span>Subtotal:</span><span>${formatMoney(sale.subtotal)}</span></div>
-        ${sale.tax > 0 ? `<div class="receipt-row"><span>Sales Tax (${Number(sale.tax_rate ?? storeSettings.taxRate)}%):</span><span>${formatMoney(sale.tax)}</span></div>` : ''}
+        <div class="receipt-row"><span>Subtotal:</span><span>${receiptMoney(sale.subtotal)}</span></div>
+        ${sale.tax > 0 ? `<div class="receipt-row"><span>Sales Tax (${Number(sale.tax_rate ?? receiptSettings.taxRate)}%):</span><span>${receiptMoney(sale.tax)}</span></div>` : ''}
         <div class="receipt-row receipt-total-row" style="margin: 4px 0;">
-          <span>GRAND TOTAL:</span><span>${formatMoney(sale.total)}</span>
+          <span>GRAND TOTAL:</span><span>${receiptMoney(sale.total)}</span>
         </div>
 
         <hr class="receipt-divider">
 
         <div class="receipt-row"><span>Payment Method:</span><span><b>${sale.payment_method}</b></span></div>
         ${sale.payment_method === 'Cash' ? `
-          <div class="receipt-row"><span>Tendered:</span><span>${formatMoney(sale.tendered_amount)}</span></div>
-          <div class="receipt-row"><span>Change:</span><span>${formatMoney(sale.change_amount)}</span></div>
+          <div class="receipt-row"><span>Tendered:</span><span>${receiptMoney(sale.tendered_amount)}</span></div>
+          <div class="receipt-row"><span>Change:</span><span>${receiptMoney(sale.change_amount)}</span></div>
         ` : ''}
 
         <hr class="receipt-divider">
-        <div class="receipt-footer">${esc(storeSettings.footer).replace(/\n/g, '<br>')}</div>
+        <div class="receipt-footer">${esc(receiptSettings.footer).replace(/\n/g, '<br>')}</div>
       `;
 
       openModal('receiptModal');
     }
+
+    document.getElementById('btnPreviewReceiptDesign').addEventListener('click',()=>{
+      const value=id=>document.getElementById(id).value.trim();
+      const size=Number(value('setReceiptFontSize'));
+      if(!Number.isInteger(size)||size<9||size>14) { showToast('Receipt text size must be between 9 and 14');return; }
+      const settings={...storeSettings,storeName:value('setStoreName'),tagline:value('setStoreTagline'),address:value('setStoreAddress'),phone:value('setStorePhone'),taxId:value('setStoreTaxId'),currency:value('setStoreCurrency'),receiptWidth:value('setReceiptWidth'),footer:value('setReceiptFooter'),receiptTemplate:value('setReceiptTemplate'),receiptFont:value('setReceiptFont'),receiptFontSize:size,receiptHeaderAlign:value('setReceiptAlign'),receiptShowAddress:document.getElementById('setReceiptShowAddress').checked,receiptShowPhone:document.getElementById('setReceiptShowPhone').checked,receiptShowItemDates:document.getElementById('setReceiptShowDates').checked};
+      showReceiptPreview({receiptNo:'SAMPLE-001',saleType:'Retail',cashier:currentUser.name,currency:settings.currency,formattedDate:new Date().toLocaleDateString('en-GB'),formattedTime:'12:00',payment_method:'Cash',subtotal:200,tax:0,tax_rate:0,total:200,tendered_amount:500,change_amount:300,items:[{name:'Sample product',pack_name:'Piece',tier:'Retail',qty:2,price:100,manufacturing_date:'2026-01-01',expiry_date:'2027-12-31'}]},settings,true);
+    });
 
     /* Modal open/close helpers */
     function openModal(id) { document.getElementById(id).classList.add('open'); }
@@ -2601,6 +3142,8 @@
       document.getElementById('prodStock').disabled=true;
       document.getElementById('prodImageFile').value='';
       document.getElementById('prodName').value = p.name;
+      document.getElementById('prodManufacturingDate').value=p.manufacturing_date||'';
+      document.getElementById('prodExpiryDate').value=p.expiry_date||'';
       document.getElementById('prodBarcode').value = p.barcode;
       document.getElementById('prodCategory').value = p.cat || p.category || 'Produce';
       document.getElementById('prodUnit').value = p.unit || '1 pc';
@@ -2661,7 +3204,8 @@
         const payload={name:value('prodName'),barcode:value('prodBarcode')||null,category:value('prodCategory'),unit:value('prodUnit'),
           retail_price:Number(value('prodRetailPrice')),wholesale_price:Number(value('prodWholesalePrice')),
           wholesale_unit:value('prodWholesaleUnit')||'Carton',wholesale_pack_size:Number(value('prodWholesalePackSize')),
-          emoji:value('prodEmoji')||'📦'};
+          emoji:value('prodEmoji')||'📦',manufacturing_date:value('prodManufacturingDate')||null,expiry_date:value('prodExpiryDate')||null};
+        if(payload.manufacturing_date && payload.expiry_date && payload.expiry_date<payload.manufacturing_date) throw new Error('Expiry date cannot be before manufacturing date');
         if(!id) payload.stock=Number(value('prodStock'));
         const saved=await post(id?`/api/products/${id}`:'/api/products',payload,id?'PATCH':'POST');
         document.getElementById('prodEditId').value=saved.id;
@@ -2699,6 +3243,13 @@
       document.getElementById('setReceiptWidth').value = storeSettings.receiptWidth;
       document.getElementById('setStoreIcon').value = storeSettings.icon;
       document.getElementById('setReceiptFooter').value = storeSettings.footer;
+      document.getElementById('setReceiptTemplate').value=storeSettings.receiptTemplate;
+      document.getElementById('setReceiptAlign').value=storeSettings.receiptHeaderAlign;
+      document.getElementById('setReceiptFont').value=storeSettings.receiptFont;
+      document.getElementById('setReceiptFontSize').value=storeSettings.receiptFontSize;
+      document.getElementById('setReceiptShowAddress').checked=storeSettings.receiptShowAddress;
+      document.getElementById('setReceiptShowPhone').checked=storeSettings.receiptShowPhone;
+      document.getElementById('setReceiptShowDates').checked=storeSettings.receiptShowItemDates;
       openModal('settingsModal');
     });
 
@@ -2709,7 +3260,10 @@
         await post('/api/settings',{
           store_name:value('setStoreName'),tagline:value('setStoreTagline'),branch:value('setStoreBranch'),address:value('setStoreAddress'),
           phone:value('setStorePhone'),tax_id:value('setStoreTaxId'),currency:value('setStoreCurrency'),tax_rate:Number(value('setStoreTaxRate')),
-          receipt_width:value('setReceiptWidth'),icon:value('setStoreIcon')||'🛒',footer:value('setReceiptFooter')
+          receipt_width:value('setReceiptWidth'),icon:value('setStoreIcon')||'🛒',footer:value('setReceiptFooter'),
+          receipt_template:value('setReceiptTemplate'),receipt_font:value('setReceiptFont'),receipt_font_size:Number(value('setReceiptFontSize')),
+          receipt_header_align:value('setReceiptAlign'),receipt_show_address:document.getElementById('setReceiptShowAddress').checked,
+          receipt_show_phone:document.getElementById('setReceiptShowPhone').checked,receipt_show_item_dates:document.getElementById('setReceiptShowDates').checked
         },'PATCH');
         await syncFromBackend(); closeModal('settingsModal'); showToast('Settings saved');
       } catch(error) { showToast(error.message); }
@@ -2737,7 +3291,7 @@
       });
     }
     document.getElementById('addStaffForm').hidden=true;
-    const staffNote=document.createElement('p'); staffNote.textContent='Create staff login accounts in Supabase Authentication, then link their staff_profiles record. PIN accounts are no longer used.';
+    const staffNote=document.createElement('p'); staffNote.textContent='This shop uses one admin login. Contact the system owner to manage account access.';
     document.getElementById('addStaffForm').before(staffNote);
 
         document.getElementById('btnOpenSales').addEventListener('click',async()=>{
@@ -3171,5 +3725,84 @@
  document.getElementById('btnSwitchUser').addEventListener('click',()=>showBill(false));
 })();
 </script>
+<script>
+/* Presentation only: original authenticated API handlers and state remain intact. */
+(() => {
+ const $=id=>document.getElementById(id);
+ const paths={
+  workspaceSell:'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
+  btnOpenAddProduct:'M12 3l9 5-9 5-9-5 9-5z M3 8v9l9 5 9-5V8 M12 13v9',
+  btnOpenSales:'M4 19V9 M10 19V4 M16 19v-7 M22 19H2',
+  btnOpenReturns:'M4 8h11a5 5 0 010 10h-3 M4 8l5-5 M4 8l5 5',
+  btnOpenStock:'M3 7l9-4 9 4-9 4-9-4z M3 7v10l9 4 9-4V7 M12 11v10',
+  btnOpenCredit:'M4 4h16v16H4z M8 8h8 M8 12h5 M8 16h8',
+  btnOpenStaff:'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2 M9 11a4 4 0 100-8 4 4 0 000 8 M22 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75',
+  btnOpenSettings:'M12 8a4 4 0 100 8 4 4 0 000-8 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2'
+ };
+ const labels={workspaceSell:'Sell',btnOpenAddProduct:'Add item',btnOpenSales:'Sales',btnOpenReturns:'Returns',btnOpenStock:'Inventory',btnOpenCredit:'Khata',btnOpenStaff:'Account',btnOpenSettings:'Settings'};
+ Object.entries(paths).forEach(([id,path])=>{
+  const b=$(id);if(!b)return;
+  b.innerHTML=`<span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg></span><span>${labels[id]}</span>`;
+  b.title=labels[id];
+ });
+ const actions=$('mobileMenuActions');
+ const user=actions.querySelector('.user-pill');
+ if(user)$('workspaceAccount').appendChild(user);
+ const connection=$('backendStatusPill');if(connection)$('workspaceConnection').appendChild(connection);
+ $('workspaceNavigation').appendChild(actions);
+ function closeMenu(){document.body.classList.remove('mobile-menu-open');$('mobileMenuButton').setAttribute('aria-expanded','false');}
+ $('mobileMenuButton').addEventListener('click',()=>{if(document.body.classList.contains('mobile-menu-open'))$('closeWorkspaceMenu').focus();});
+ $('workspaceScrim').addEventListener('click',closeMenu);
+ $('closeWorkspaceMenu').addEventListener('click',()=>{closeMenu();$('mobileMenuButton').focus();});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape' && document.body.classList.contains('mobile-menu-open'))closeMenu();});
+ function active(id){Object.keys(labels).forEach(key=>{const b=$(key);if(b){b.classList.toggle('nav-active',key===id);if(key===id)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');}});}
+ actions.addEventListener('click',e=>{const b=e.target.closest('button');if(b&&labels[b.id])active(b.id);});
+ $('workspaceSell').addEventListener('click',()=>{
+  document.querySelectorAll('.modal-overlay.open').forEach(el=>el.classList.remove('open'));
+  document.querySelectorAll('dialog[open]').forEach(el=>el.close());
+  $('mobileProductsTab').click();closeMenu();active('workspaceSell');
+ });
+ function stats(){
+  const signedIn=!!currentUser.id;
+  $('workspaceProductCount').textContent=signedIn?products.length:'—';
+  $('workspaceLowCount').textContent=signedIn?products.filter(p=>p.stock>0&&p.stock<(p.wholesale_pack_size||1)).length:'—';
+  $('workspaceExpiryCount').textContent=signedIn?products.filter(p=>expiryState(p).kind==='soon').length:'—';
+  const count=$('productsGrid').querySelectorAll('.product-card').length;
+  $('workspaceResultCount').textContent=signedIn?`${count} product${count===1?'':'s'} shown`:'Your shop catalog';
+ }
+ new MutationObserver(stats).observe($('productsGrid'),{childList:true});stats();
+ $('workspaceDate').textContent=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Karachi',day:'numeric',month:'short',year:'numeric'}).format(new Date());
+ const modalObserver=new MutationObserver(()=>{
+  if(!document.querySelector('.modal-overlay.open,dialog[open]'))active('workspaceSell');
+ });
+ document.querySelectorAll('.modal-overlay,dialog').forEach(el=>modalObserver.observe(el,{attributes:true,attributeFilter:['class','open']}));
+ // Keep keyboard focus in the topmost custom dialog; native dialogs manage their own focus.
+ const modalFocus=new WeakMap();
+ const focusObserver=new MutationObserver(records=>records.forEach(r=>{
+  const el=r.target;if(el.classList.contains('open')){
+   if(!modalFocus.has(el))modalFocus.set(el,document.activeElement);
+   el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');
+   const heading=el.querySelector('.modal-heading');if(heading){if(!heading.id)heading.id=el.id+'Title';el.setAttribute('aria-labelledby',heading.id);}
+   [...el.querySelectorAll('input:not([type=hidden]):not([disabled]),select:not([disabled]),button:not([disabled])')].find(x=>x.getClientRects().length)?.focus();
+  }else if(modalFocus.has(el)){const prior=modalFocus.get(el);modalFocus.delete(el);if(prior?.isConnected)prior.focus();}
+ }));
+ document.querySelectorAll('.modal-overlay').forEach(el=>focusObserver.observe(el,{attributes:true,attributeFilter:['class']}));
+ document.addEventListener('keydown',e=>{
+  if(e.key!=='Tab'||document.querySelector('dialog[open]')||$('loginOverlay').style.display!=='none')return;
+  if(document.body.classList.contains('mobile-menu-open')){
+   const links=[...document.querySelectorAll('.workspace-nav button')].filter(x=>!x.disabled&&x.getClientRects().length);
+   const first=links[0],last=links.at(-1);if(!first)return;
+   if(!document.querySelector('.workspace-nav').contains(document.activeElement)){e.preventDefault();first.focus();}
+   else if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+   else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}return;
+  }
+  const dialogs=[...document.querySelectorAll('.modal-overlay.open')];const current=dialogs.at(-1);if(!current)return;
+  const items=[...current.querySelectorAll('button,input,select,textarea,a[href],[tabindex]')].filter(el=>!el.disabled&&el.tabIndex>=0&&el.getClientRects().length);
+  const first=items[0],last=items.at(-1);if(!first)return;
+  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+ });
+})();
+</script>
+
 </body>
 </html>
