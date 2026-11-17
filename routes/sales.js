@@ -14,11 +14,14 @@ router.use((req, res, next) => {
 const saleItemSchema = z.object({
   product_id: z.number().int().min(1).max(2147483647),
   qty: z.number().int().min(1).max(1000000),
-  tier: z.enum(['Retail', 'Wholesale'])
+  tier: z.enum(['Retail', 'Wholesale']),
+  price_override: z.number().finite().min(0).max(9999999999.99).multipleOf(0.01).optional()
 }).strict();
 
 const saleSchema = z.object({
   request_id: z.string().uuid(),
+  discount_type: z.enum(['Amount','Percent']).default('Amount'),
+  discount_value: z.number().finite().min(0).max(99999999999999.99).multipleOf(0.01).default(0),
   customer_id: z.number()
     .int()
     .min(1)
@@ -72,6 +75,7 @@ const saleSchema = z.object({
       });
     }
 
+    if(sale.discount_type==='Percent' && sale.discount_value>100)context.addIssue({code:'custom',path:['discount_value'],message:'Percentage cannot exceed 100%'});
     const seen = new Set();
 
     sale.items.forEach((item, index) => {
@@ -94,6 +98,7 @@ const saleColumns = [
   'cashier_id', 'cashier_name',
   'customer_id', 'customer_name', 'customer_phone',
   'sale_type', 'payment_method', 'currency',
+  'gross_subtotal', 'discount_amount', 'discount_type', 'discount_value',
   'subtotal', 'tax_rate', 'tax', 'total',
   'tendered_amount', 'change_amount', 'created_at'
 ].join(',');
@@ -159,12 +164,14 @@ router.post('/', async (req, res) => {
   try {
     const sale = result.data;
 
-    const { data, error } = await req.db.rpc('checkout_sale', {
+    const { data, error } = await req.db.rpc('checkout_sale_discount', {
       p_request_id: sale.request_id,
       p_cashier_id: req.user.id,
       p_sale_type: sale.sale_type,
       p_payment_method: sale.payment_method,
       p_items: sale.items,
+      p_discount_type: sale.discount_type,
+      p_discount_value: sale.discount_value,
       p_tendered_amount: sale.tendered_amount ?? null,
       p_customer_id: sale.customer_id ?? null
     });
