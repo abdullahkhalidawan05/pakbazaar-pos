@@ -1951,6 +1951,12 @@
       <!-- Cart Checkout Drawer & Totals -->
       <div class="cart-checkout-section">
         <div class="summary-lines">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <label>Order discount <select id="checkoutDiscountType" onchange="renderCart()"><option value="Amount">Amount</option><option value="Percent">Percent (%)</option></select></label>
+            <input id="checkoutDiscountValue" aria-label="Order discount value" type="number" min="0" step="0.01" value="0" oninput="renderCart()" style="width:100px;max-width:100%">
+          </div>
+          <p id="checkoutDiscountError" role="alert" style="color:#b91c1c;font-size:12px"></p>
+          <div class="summary-row"><span>Discount</span><span id="summaryDiscount"></span></div>
           <div class="summary-row">
             <span>Subtotal</span>
             <span id="summarySubtotal">Rs. 0.00</span>
@@ -2490,7 +2496,7 @@
       invalidateApiCache();Object.keys(resourceSignatures).forEach(key=>delete resourceSignatures[key]);
       authToken=''; writeSession('pos_access_token',null);
       currentUser={name:'Not signed in',role:'Guest',id:null};
-      products=[]; staffList=[]; creditRecords=[]; customers=[]; salesHistory=[]; cart.clear();
+      products=[]; staffList=[]; creditRecords=[]; customers=[]; salesHistory=[]; cart.clear(); resetCheckoutDiscount();
       document.querySelectorAll('.modal-overlay').forEach(x=>x.classList.remove('open'));
       document.getElementById('loginOverlay').style.display='grid';
       updateActiveUserUI(); renderProducts(); renderCart();
@@ -2871,7 +2877,8 @@
         packName: isWholesale ? (prod.wholesale_unit || 'Carton') : (prod.unit || 'Piece'),
         packSize: packSize,
         unitRate: pricePerUnit,
-        price: packPrice,
+        price: cart.get(cartKey)?.customPrice?cart.get(cartKey).price:packPrice,
+        customPrice:!!cart.get(cartKey)?.customPrice,
         qty: currentQty + 1
       });
 
@@ -2948,12 +2955,33 @@
     function clearCart() {
       if (!cart.size) return;
       if (confirm('Clear current order?')) {
-        cart.clear();
+        cart.clear(); resetCheckoutDiscount();
         renderCart();
         showToast('Order cleared');
       }
     }
 
+    function resetCheckoutDiscount(){document.getElementById('checkoutDiscountValue').value='0';document.getElementById('checkoutDiscountType').value='Amount';}
+    function checkoutTotals(){
+      const cents=n=>Math.round((Number(n)+Number.EPSILON)*100);
+      const gross=[...cart.values()].reduce((sum,i)=>sum+cents(i.price)*i.qty,0);
+      const raw=document.getElementById('checkoutDiscountValue').value;
+      const value=Number(raw),type=document.getElementById('checkoutDiscountType').value;
+      let error='';
+      if(!/^\d+(?:\.\d{1,2})?$/.test(raw)||!Number.isFinite(value)||value<0)error='Enter a non-negative discount with up to 2 decimal places.';
+      const discount=type==='Percent'?Math.round(gross*value/100):cents(value);
+      if(type==='Percent'&&value>100)error='Percentage cannot exceed 100%.';
+      if(discount>gross)error='Discount cannot exceed the order subtotal.';
+      const net=gross-(error?0:discount),tax=Math.round(net*Number(storeSettings.taxRate)/100);
+      return {gross:gross/100,discount:(error?0:discount)/100,subtotal:net/100,tax:tax/100,total:(net+tax)/100,error,type,value};
+    }
+    function changeCheckoutPrice(key,raw){
+      const item=cart.get(key);if(!item||checkingOut)return;
+      const price=Number(raw);
+      if(!/^\d+(?:\.\d{1,2})?$/.test(raw)||!Number.isFinite(price)||price<0||price>9999999999.99){showToast('Enter a valid pack price with up to 2 decimal places.');renderCart();return;}
+      item.price=price;item.customPrice=true;renderCart();
+    }
+    function resetCheckoutPrice(key){const item=cart.get(key);if(!item||checkingOut)return;const p=products.find(p=>p.id===item.prodId);if(!p)return;item.price=item.tier==='wholesale'?p.wholesale_price*item.packSize:p.retail_price;delete item.customPrice;renderCart();}
     function renderCart() {
       const items = [...cart.values()];
       const totalItemCount = items.reduce((sum, item) => sum + item.qty, 0);
@@ -2979,7 +3007,8 @@
               <div class="cart-item-tier-toggle" onclick="toggleCartItemTier('${item.cartKey}')" title="Click to toggle between Retail and Wholesale">
                 ${item.tier === 'wholesale' ? `📦 Wholesale · ${item.packName}` : `🛍️ Retail · Single`} ⇄
               </div>
-              <span class="cart-item-rate">${formatMoney(item.price)} per pack</span>
+              <label class="cart-item-rate">Price per pack <input aria-label="Checkout pack price for ${esc(item.name)}" type="number" min="0" max="9999999999.99" step="0.01" value="${item.price}" onchange="changeCheckoutPrice('${item.cartKey}',this.value)" style="width:100px;max-width:100%"></label>
+              ${item.customPrice?`<button type="button" class="btn-nav" onclick="resetCheckoutPrice('${item.cartKey}')">Reset price</button>`:''}
               <div class="cart-item-stepper">
                 <button class="stepper-btn" aria-label="Decrease quantity" onclick="changeCartQty('${item.cartKey}', -1)">−</button>
                 <span class="stepper-qty">${item.qty}</span>
@@ -2994,16 +3023,16 @@
         `).join('');
       }
 
-      const subtotal = items.reduce((s, x) => s + (x.price * x.qty), 0);
-      const tax = subtotal * (Number(storeSettings.taxRate) / 100);
-      const grandTotal = subtotal + tax;
-
+      const totals=checkoutTotals();
+      const subtotal=totals.gross,tax=totals.tax,grandTotal=totals.total;
+      document.getElementById('summaryDiscount').textContent='− '+formatMoney(totals.discount);
+      document.getElementById('checkoutDiscountError').textContent=totals.error;
       document.getElementById('summarySubtotal').textContent = formatMoney(subtotal);
       document.getElementById('summaryTax').textContent = formatMoney(tax);
       document.getElementById('summaryTotal').textContent = formatMoney(grandTotal);
 
       const checkoutBtn = document.getElementById('btnCheckout');
-      checkoutBtn.disabled = items.length === 0;
+      checkoutBtn.disabled = items.length === 0 || !!totals.error || checkingOut;
       document.getElementById('checkoutBtnLabel').textContent = `Complete Sale · ${formatMoney(grandTotal)}`;
 
       updateChangeCalculator(grandTotal);
@@ -3026,9 +3055,7 @@
     }
 
     function getCurrentGrandTotal() {
-      const items = [...cart.values()];
-      const subtotal = items.reduce((s, x) => s + (x.price * x.qty), 0);
-      return subtotal + (subtotal * (Number(storeSettings.taxRate) / 100));
+      return checkoutTotals().total;
     }
 
     /* Barcode Auto-Scan */
@@ -3077,10 +3104,12 @@
         if(body) {
           if(!confirm('Retry the earlier unconfirmed checkout? This retries its original items and payment.')) return;
         } else {
+          const totals=checkoutTotals();if(totals.error)throw new Error(totals.error);
           const customerId=Number(document.getElementById('creditCustomerId').value)||null;
           if(selectedPaymentMethod==='Credit' && !customerId) throw new Error('Select an existing customer. Create customers from the Khata screen.');
           body={request_id:crypto.randomUUID(),customer_id:customerId,sale_type:activeSaleMode,payment_method:selectedPaymentMethod,
-            items:items.map(i=>({product_id:i.prodId,qty:i.qty,tier:i.tier.toLowerCase()==='wholesale'?'Wholesale':'Retail'}))};
+            discount_type:totals.type,discount_value:totals.value,
+            items:items.map(i=>({product_id:i.prodId,qty:i.qty,tier:i.tier.toLowerCase()==='wholesale'?'Wholesale':'Retail',...(i.customPrice?{price_override:i.price}:{})}))};
           if(selectedPaymentMethod==='Cash') {
             const amount=document.getElementById('cashTenderedInput').value;
             if(amount.trim()==='') throw new Error('Enter the cash amount received.');
@@ -3095,7 +3124,7 @@
           if(error.status && error.status>=400 && error.status<500 && error.status!==409) writeSession(`pos_pending_sale_${currentUser.id}`, null);
           throw error;
         }
-        writeSession(`pos_pending_sale_${currentUser.id}`, null); cart.clear();
+        writeSession(`pos_pending_sale_${currentUser.id}`, null); cart.clear(); resetCheckoutDiscount();
         document.getElementById('cashTenderedInput').value=''; renderCart();
         showReceiptPreview(normalSale(result.sale,result.items));
         showToast(`Sale saved: ${result.sale.receipt_no}`);
@@ -3158,7 +3187,7 @@
                 </td>
                 <td style="text-align: center;">${item.qty}</td>
                 <td style="text-align: right;">${item.price.toFixed(2)}</td>
-                <td style="text-align: right;">${(item.price * item.qty).toFixed(2)}</td>
+                <td style="text-align: right;">${Number(item.line_total ?? item.price * item.qty).toFixed(2)}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -3166,6 +3195,7 @@
 
         <hr class="receipt-divider">
 
+        ${Number(sale.discount_amount)>0?`<div class="receipt-row"><span>Before order discount:</span><span>${receiptMoney(Number(sale.gross_subtotal))}</span></div><div class="receipt-row"><span>Order discount:</span><span>−${receiptMoney(Number(sale.discount_amount))}</span></div><div class="receipt-line-meta">Item totals include the allocated order discount.</div>`:''}
         <div class="receipt-row"><span>Subtotal:</span><span>${receiptMoney(sale.subtotal)}</span></div>
         ${sale.tax > 0 ? `<div class="receipt-row"><span>Sales Tax (${Number(sale.tax_rate ?? receiptSettings.taxRate)}%):</span><span>${receiptMoney(sale.tax)}</span></div>` : ''}
         <div class="receipt-row receipt-total-row" style="margin: 4px 0;">
