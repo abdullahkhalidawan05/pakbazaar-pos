@@ -15,11 +15,20 @@ const money = z.number()
   .max(9999999999.99)
   .multipleOf(0.01);
 
+const productDate = z.string().refine(value => {
+  if (!/^(?!0000)[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value)) return false;
+  const date = new Date(value + 'T00:00:00.000Z');
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}, { message: 'Use a real calendar date in YYYY-MM-DD format' }).nullable().optional();
+
 const productFields = z.object({
+  manufacturing_date: productDate,
+  expiry_date: productDate,
   name: z.string().trim().min(1).max(150),
   barcode: z.string().trim().min(1).max(100).nullable(),
   category: z.string().trim().min(1).max(80),
   unit: z.string().trim().min(1).max(80),
+  cost_price: money,
   retail_price: money,
   wholesale_price: money,
   wholesale_unit: z.string().trim().min(1).max(100),
@@ -57,6 +66,10 @@ function validateBody(schema) {
       });
     }
 
+    if (result.data.manufacturing_date && result.data.expiry_date &&
+        result.data.expiry_date < result.data.manufacturing_date) {
+      return res.status(400).json({ error: 'Expiry date cannot be before manufacturing date' });
+    }
     req.productData = result.data;
     return next();
   };
@@ -81,6 +94,9 @@ function validateId(req, res, next) {
 }
 
 function handleDatabaseError(res, error) {
+  if (error?.code === '23514') return res.status(400).json({
+    error: 'Check product prices and dates: prices must be non-negative, and expiry must be on or after manufacturing date'
+  });
   if (error && error.code === '23505') {
     return res.status(409).json({
       error: 'A product with this barcode already exists'
