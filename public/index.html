@@ -2198,6 +2198,11 @@
               </select>
             </div>
 
+            <div class="form-group full">
+              <label class="form-label" for="prodCostPrice">Cost / purchase price (per base single unit) *</label>
+              <input class="form-input" id="prodCostPrice" required type="number" min="0" max="9999999999.99" step="0.01" placeholder="e.g. bought for 80, sold for 100">
+              <span class="form-hint">Your cost for one piece, kg, or other base unit. For a pack, divide its purchase cost by the number of base units. Used for product profit; never printed on customer receipts.</span>
+            </div>
             <!-- Retail Pricing Section -->
             <div class="form-group">
               <label class="form-label">Retail Single Unit *</label>
@@ -2313,6 +2318,11 @@
           </div>
         </div>
 
+        <div class="metric-card" style="margin-bottom:14px">
+          <span class="metric-label">Gross product profit today</span>
+          <span class="metric-val" id="metricDailyProfit">…</span>
+          <p id="profitDetail" class="form-hint" role="status">Sales after discounts, excluding tax, minus product cost. Asia/Karachi day. Rent and other expenses are not deducted.</p>
+        </div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
           <h4 style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--slate-500);">Completed Transactions</h4>
           <button class="btn-nav" onclick="exportSalesCSV()">Export to CSV</button>
@@ -3280,6 +3290,7 @@
       document.getElementById('prodBarcode').value = p.barcode;
       document.getElementById('prodCategory').value = p.cat || p.category || 'Produce';
       document.getElementById('prodUnit').value = p.unit || '1 pc';
+      document.getElementById('prodCostPrice').value = p.cost_price ?? '';
       document.getElementById('prodRetailPrice').value = p.retail_price;
       document.getElementById('prodWholesaleUnit').value = p.wholesale_unit || 'Carton';
       document.getElementById('prodWholesalePackSize').value = p.wholesale_pack_size || 12;
@@ -3335,9 +3346,10 @@
         const id=document.getElementById('prodEditId').value;
         const value=id=>document.getElementById(id).value.trim();
         const payload={name:value('prodName'),barcode:value('prodBarcode')||null,category:value('prodCategory'),unit:value('prodUnit'),
-          retail_price:Number(value('prodRetailPrice')),wholesale_price:Number(value('prodWholesalePrice')),
+          cost_price:Number(value('prodCostPrice')),retail_price:Number(value('prodRetailPrice')),wholesale_price:Number(value('prodWholesalePrice')),
           wholesale_unit:value('prodWholesaleUnit')||'Carton',wholesale_pack_size:Number(value('prodWholesalePackSize')),
           emoji:value('prodEmoji')||'📦',manufacturing_date:value('prodManufacturingDate')||null,expiry_date:value('prodExpiryDate')||null};
+        if(value('prodCostPrice').trim()==='' || !Number.isFinite(payload.cost_price) || payload.cost_price<0)throw new Error('Enter the purchase cost per base unit.');
         if(payload.manufacturing_date && payload.expiry_date && payload.expiry_date<payload.manufacturing_date) throw new Error('Expiry date cannot be before manufacturing date');
         if(!id) payload.stock=Number(value('prodStock'));
         const saved=await post(id?`/api/products/${id}`:'/api/products',payload,id?'PATCH':'POST');
@@ -3433,6 +3445,7 @@
       const token=authToken,version=(viewLoads.get('salesModal')||0)+1;viewLoads.set('salesModal',version);
       renderSalesTable();
       document.querySelectorAll('#salesModal .metric-val').forEach(x=>x.textContent='…');
+      document.getElementById('profitDetail').textContent='Loading product profit…';
       openModal('salesModal');viewStatus('salesModal','Refreshing sales and totals…');
       try {
         const epoch=apiEpoch;
@@ -3443,7 +3456,12 @@
           const row=report.currencies.find(x=>x.currency===storeSettings.currency)||{};
           ['Net sales today','Cash sales today','Card sales today','Outstanding credit now'].forEach((label,i)=>document.querySelectorAll('#salesModal .metric-label')[i].textContent=label);
           ['metricTotalRevenue','metricRetailRevenue','metricWholesaleRevenue','metricCreditSales'].forEach((id,i)=>document.getElementById(id).textContent=formatMoney([row.net_sales_including_tax||0,row.cash_sales||0,row.card_sales||0,row.outstanding_credit_now||0][i]));
-        }else document.querySelectorAll('#salesModal .metric-val').forEach(x=>x.textContent='Admin only');
+          const profit=(report.profit||[]).find(x=>x.currency===storeSettings.currency);
+          const metric=document.getElementById('metricDailyProfit'),detail=document.getElementById('profitDetail');
+          if(!profit){metric.textContent='Unavailable';detail.textContent='Install the product profit SQL update to enable this report.';}
+          else if(Number(profit.missing_cost_lines)>0){metric.textContent='Incomplete';detail.textContent=`${profit.missing_cost_lines} sale/return lines have no historical cost. Old costs cannot be reconstructed. Add costs to existing products for future sales.`;}
+          else {metric.textContent=formatMoney(Number(profit.gross_profit));metric.style.color=Number(profit.gross_profit)<0?'#b91c1c':'var(--accent)';detail.textContent=`Net sales (excluding tax): ${formatMoney(Number(profit.net_sales))} · Product cost: ${formatMoney(Number(profit.product_cost))}. Includes discounts, returns and exchanges. Asia/Karachi day; before rent and other expenses.`;}
+        }else {document.querySelectorAll('#salesModal .metric-val').forEach(x=>x.textContent='Admin only');document.getElementById('profitDetail').textContent='Profit reports are available to the shop admin.';}
         renderSalesTable();viewStatus('salesModal','Data loaded · Refresh for latest');
       }catch(error){if(authToken===token)viewStatus('salesModal','Could not refresh: '+error.message,true);}
     });
