@@ -2295,10 +2295,20 @@
   <div class="modal-overlay" id="salesModal">
     <div class="modal-window" style="width: min(880px, 100%);">
       <div class="modal-top">
-        <h3 class="modal-heading">Sales History & Revenue Report</h3>
+        <h3 class="modal-heading">Sales History, Invoices & Reports</h3>
         <button class="btn-close-modal" onclick="closeModal('salesModal')">×</button>
       </div>
       <div class="modal-content">
+        <form id="salesHistoryFilters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px">
+          <label class="form-label">From date<input class="form-input" type="date" id="historyFrom" required max="9998-12-31"></label>
+          <label class="form-label">To date<input class="form-input" type="date" id="historyTo" required max="9998-12-31"></label>
+          <label class="form-label">Exact invoice / receipt number<input class="form-input" id="historyReceipt" maxlength="100" placeholder="Optional: paste receipt number"></label>
+          <button class="btn-nav primary" type="submit">View records</button>
+          <button class="btn-nav" id="historyToday" type="button">Today</button>
+        </form>
+        <p class="form-hint" style="margin-bottom:12px">Select any previous day or a range of up to 366 days. Totals cover the whole selected period; the invoice search filters the list only. Dates use Asia/Karachi.</p>
+        <label class="form-label">Totals currency <select class="form-select" id="historyCurrency"></select></label>
+        <p class="form-hint" id="historyPeriod" role="status"></p>
         <div class="metrics-grid">
           <div class="metric-card">
             <span class="metric-label">Total Revenue</span>
@@ -2319,13 +2329,13 @@
         </div>
 
         <div class="metric-card" style="margin-bottom:14px">
-          <span class="metric-label">Gross product profit today</span>
+          <span class="metric-label">Gross product profit · selected dates</span>
           <span class="metric-val" id="metricDailyProfit">…</span>
           <p id="profitDetail" class="form-hint" role="status">Sales after discounts, excluding tax, minus product cost. Asia/Karachi day. Rent and other expenses are not deducted.</p>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
           <h4 style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--slate-500);">Completed Transactions</h4>
-          <button class="btn-nav" onclick="exportSalesCSV()">Export to CSV</button>
+          <button class="btn-nav" id="historyExport" onclick="exportSalesCSV()">Export selected records to CSV</button>
         </div>
 
         <table class="custom-table">
@@ -2341,7 +2351,11 @@
             </tr>
           </thead>
           <tbody id="salesTableBody"></tbody>
-        </table>
+        </table><div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:14px">
+          <button class="btn-nav" id="historyPrevious" type="button" disabled>Previous</button>
+          <span id="historyPageStatus" role="status">Choose dates to load records</span>
+          <button class="btn-nav" id="historyNext" type="button" disabled>Next</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2488,6 +2502,8 @@
     let creditRecords = [];
     let customers = [];
     let salesHistory = [];
+    let salesArchive={rows:[],page:1,total:0,from:'',to:'',receipt:'',loaded:false,token:''};
+    let archiveReport=null,archiveExporting=false;
     let currentUser = {name:'Not signed in', role:'Guest', id:null};
     let activeSaleMode = 'Retail';
     const cart = new Map();
@@ -2504,6 +2520,7 @@
       document.getElementById('returnsDialog')?.close();
       document.getElementById('stockDialog')?.close();
       invalidateApiCache();Object.keys(resourceSignatures).forEach(key=>delete resourceSignatures[key]);
+      salesArchive={rows:[],page:1,total:0,from:'',to:'',receipt:'',loaded:false,token:''};archiveReport=null;document.getElementById('salesHistoryFilters').reset();document.getElementById('salesTableBody').replaceChildren();
       authToken=''; writeSession('pos_access_token',null);
       currentUser={name:'Not signed in',role:'Guest',id:null};
       products=[]; staffList=[]; creditRecords=[]; customers=[]; salesHistory=[]; cart.clear(); resetCheckoutDiscount();
@@ -3441,47 +3458,91 @@
     const staffNote=document.createElement('p'); staffNote.textContent='This shop uses one admin login. Contact the system owner to manage account access.';
     document.getElementById('addStaffForm').before(staffNote);
 
-    document.getElementById('btnOpenSales').addEventListener('click',async()=>{
-      const token=authToken,version=(viewLoads.get('salesModal')||0)+1;viewLoads.set('salesModal',version);
-      renderSalesTable();
+    function archiveMoney(value,currency){return `${currency} ${Number(value||0).toFixed(2)}`;}
+    function renderArchiveReport(){
+      const report=archiveReport,currency=document.getElementById('historyCurrency').value||storeSettings.currency;
+      if(!report){document.querySelectorAll('#salesModal .metric-val').forEach(x=>x.textContent='Admin only');return;}
+      const row=report.currencies.find(x=>x.currency===currency)||{};
+      ['Net sales · selected dates','Cash sales · selected dates','Card sales · selected dates','Outstanding credit now'].forEach((label,i)=>document.querySelectorAll('#salesModal .metric-label')[i].textContent=label);
+      ['metricTotalRevenue','metricRetailRevenue','metricWholesaleRevenue','metricCreditSales'].forEach((id,i)=>document.getElementById(id).textContent=archiveMoney([row.net_sales_including_tax||0,row.cash_sales||0,row.card_sales||0,row.outstanding_credit_now||0][i],currency));
+      const profit=(report.profit||[]).find(x=>x.currency===currency),metric=document.getElementById('metricDailyProfit'),detail=document.getElementById('profitDetail');
+      if(!profit){metric.textContent='Unavailable';detail.textContent='Product profit requires the installed profit SQL update.';}
+      else if(Number(profit.missing_cost_lines)>0){metric.textContent='Incomplete';detail.textContent=`${profit.missing_cost_lines} sale/return lines have no historical cost. Add costs to products for future sales; historical costs remain unknown.`;}
+      else {metric.textContent=archiveMoney(profit.gross_profit,currency);metric.style.color=Number(profit.gross_profit)<0?'#b91c1c':'var(--accent)';detail.textContent=`Net sales excluding tax: ${archiveMoney(profit.net_sales,currency)} · Product cost: ${archiveMoney(profit.product_cost,currency)}. Includes discounts, returns and exchanges; before rent and other expenses.`;}
+    }
+    function archiveQuery(page){return '/api/sales/history?'+new URLSearchParams({from:salesArchive.from,to:salesArchive.to,page:String(page),receipt:salesArchive.receipt});}
+    async function loadSalesArchive(page=1){
+      if(!authToken)return;
+      if(!salesArchive.from){salesArchive.from=shopToday();salesArchive.to=shopToday();document.getElementById('historyFrom').value=salesArchive.from;document.getElementById('historyTo').value=salesArchive.to;}
+      const token=authToken,epoch=apiEpoch,version=(viewLoads.get('salesModal')||0)+1;viewLoads.set('salesModal',version);
+      const filters={from:salesArchive.from,to:salesArchive.to,receipt:salesArchive.receipt};
+      salesArchive.loaded=false;salesArchive.rows=[];renderSalesTable();archiveReport=null;
       document.querySelectorAll('#salesModal .metric-val').forEach(x=>x.textContent='…');
-      document.getElementById('profitDetail').textContent='Loading product profit…';
-      openModal('salesModal');viewStatus('salesModal','Refreshing sales and totals…');
+      document.getElementById('profitDetail').textContent='Loading profit for selected dates…';
+      document.getElementById('historyPeriod').textContent=`${filters.from} to ${filters.to} · Asia/Karachi`;
+      document.getElementById('historyPrevious').disabled=true;document.getElementById('historyNext').disabled=true;document.getElementById('historyExport').disabled=true;
+      document.getElementById('historyPageStatus').textContent='Loading records…';
+      openModal('salesModal');viewStatus('salesModal','Refreshing selected records and totals…');
       try {
-        const epoch=apiEpoch;
-        const [,report]=await Promise.all([syncFromBackend(['sales']),currentUser.role==='Admin'?api('/api/reports/summary'):Promise.resolve(null)]);
+        const [history,report]=await Promise.all([api(archiveQuery(page)),currentUser.role==='Admin'?api('/api/reports/summary?'+new URLSearchParams({from:filters.from,to:filters.to})):Promise.resolve(null)]);
         if(authToken!==token||viewLoads.get('salesModal')!==version)return;
-        if(epoch!==apiEpoch){viewStatus('salesModal','Data changed while loading. Reopen Sales to refresh.');return;}
-        if(report){
-          const row=report.currencies.find(x=>x.currency===storeSettings.currency)||{};
-          ['Net sales today','Cash sales today','Card sales today','Outstanding credit now'].forEach((label,i)=>document.querySelectorAll('#salesModal .metric-label')[i].textContent=label);
-          ['metricTotalRevenue','metricRetailRevenue','metricWholesaleRevenue','metricCreditSales'].forEach((id,i)=>document.getElementById(id).textContent=formatMoney([row.net_sales_including_tax||0,row.cash_sales||0,row.card_sales||0,row.outstanding_credit_now||0][i]));
-          const profit=(report.profit||[]).find(x=>x.currency===storeSettings.currency);
-          const metric=document.getElementById('metricDailyProfit'),detail=document.getElementById('profitDetail');
-          if(!profit){metric.textContent='Unavailable';detail.textContent='Install the product profit SQL update to enable this report.';}
-          else if(Number(profit.missing_cost_lines)>0){metric.textContent='Incomplete';detail.textContent=`${profit.missing_cost_lines} sale/return lines have no historical cost. Old costs cannot be reconstructed. Add costs to existing products for future sales.`;}
-          else {metric.textContent=formatMoney(Number(profit.gross_profit));metric.style.color=Number(profit.gross_profit)<0?'#b91c1c':'var(--accent)';detail.textContent=`Net sales (excluding tax): ${formatMoney(Number(profit.net_sales))} · Product cost: ${formatMoney(Number(profit.product_cost))}. Includes discounts, returns and exchanges. Asia/Karachi day; before rent and other expenses.`;}
-        }else {document.querySelectorAll('#salesModal .metric-val').forEach(x=>x.textContent='Admin only');document.getElementById('profitDetail').textContent='Profit reports are available to the shop admin.';}
-        renderSalesTable();viewStatus('salesModal','Data loaded · Refresh for latest');
-      }catch(error){if(authToken===token)viewStatus('salesModal','Could not refresh: '+error.message,true);}
+        if(apiEpoch!==epoch)throw new Error('Data changed while loading. Refresh Sales to load current records.');
+        salesArchive={...filters,rows:history.sales.map(s=>normalSale(s)),page:history.page,total:history.total,loaded:true,token};archiveReport=report;
+        const selector=document.getElementById('historyCurrency'),previous=selector.value;selector.replaceChildren();
+        const currencies=[...new Set([...(report?.currencies||[]).map(x=>x.currency),...history.sales.map(x=>x.currency),storeSettings.currency])];
+        currencies.forEach(c=>selector.add(new Option(c,c)));selector.value=currencies.includes(previous)?previous:storeSettings.currency;
+        renderArchiveReport();renderSalesTable();
+        const pages=Math.max(1,Math.ceil(history.total/history.page_size));
+        document.getElementById('historyPageStatus').textContent=history.total?`Page ${history.page} of ${pages} · ${history.total} matching invoices`:'No invoices match these filters';
+        document.getElementById('historyPrevious').disabled=history.page<=1;
+        document.getElementById('historyNext').disabled=history.page>=pages;
+        document.getElementById('historyExport').disabled=!history.total||archiveExporting;
+        viewStatus('salesModal','Records loaded · Refresh for latest');
+      }catch(error){if(authToken===token&&viewLoads.get('salesModal')===version){document.getElementById('historyPageStatus').textContent='Records unavailable';document.getElementById('profitDetail').textContent='Could not load the selected report.';document.querySelectorAll('#salesModal .metric-val').forEach(x=>x.textContent='Unavailable');viewStatus('salesModal','Could not refresh: '+error.message,true);}}
+    }
+    document.getElementById('btnOpenSales').addEventListener('click',()=>loadSalesArchive(1));
+    document.getElementById('historyCurrency').addEventListener('change',renderArchiveReport);
+    document.getElementById('salesHistoryFilters').addEventListener('submit',e=>{
+      e.preventDefault();const from=document.getElementById('historyFrom').value,to=document.getElementById('historyTo').value;
+      const days=(Date.parse(to+'T00:00:00Z')-Date.parse(from+'T00:00:00Z'))/86400000;
+      if(!Number.isFinite(days)||days<0||days>365){showToast('Choose valid dates, up to 366 days at a time.');return;}
+      salesArchive.from=from;salesArchive.to=to;salesArchive.receipt=document.getElementById('historyReceipt').value.trim();loadSalesArchive(1);
     });
-    function renderSalesTable() {
+    document.getElementById('historyToday').addEventListener('click',()=>{salesArchive.from=salesArchive.to=shopToday();salesArchive.receipt='';document.getElementById('historyFrom').value=salesArchive.from;document.getElementById('historyTo').value=salesArchive.to;document.getElementById('historyReceipt').value='';loadSalesArchive(1);});
+    document.getElementById('historyPrevious').addEventListener('click',()=>loadSalesArchive(Math.max(1,salesArchive.page-1)));
+    document.getElementById('historyNext').addEventListener('click',()=>loadSalesArchive(salesArchive.page+1));
+    function renderSalesTable(){
       const tbody=document.getElementById('salesTableBody');tbody.replaceChildren();
-      salesHistory.forEach(s=>{
+      salesArchive.rows.forEach(s=>{
         const tr=document.createElement('tr');
-        [s.receiptNo,s.saleType,`${s.formattedDate} ${s.formattedTime}`,s.cashier,s.payment_method,formatMoney(s.total)].forEach(text=>{const td=document.createElement('td');td.textContent=text;tr.appendChild(td);});
-        const td=document.createElement('td');const button=document.createElement('button');button.className='btn-nav';button.textContent='Invoice';button.onclick=async()=>{
-          try {const data=await api(`/api/sales/${s.id}`);showReceiptPreview(normalSale(data,data.sale_items));}catch(e){showToast(e.message);}
+        const stamp=new Date(s.created_at).toLocaleString('en-GB',{timeZone:'Asia/Karachi'});
+        [s.receiptNo,s.saleType,stamp,s.cashier,s.payment_method,archiveMoney(s.total,s.currency)].forEach(value=>{const td=document.createElement('td');td.textContent=value;tr.appendChild(td);});
+        const td=document.createElement('td'),button=document.createElement('button');button.className='btn-nav';button.textContent='Invoice';button.onclick=async()=>{
+          const token=authToken;button.disabled=true;
+          try{const data=await api(`/api/sales/${s.id}`);if(authToken===token)showReceiptPreview(normalSale(data,data.sale_items));}catch(e){if(authToken===token)showToast(e.message);}finally{button.disabled=false;}
         };td.appendChild(button);tr.appendChild(td);tbody.appendChild(tr);
       });
+      if(salesArchive.loaded&&!salesArchive.rows.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=7;td.textContent='No invoices on this page. Choose another date or return to the previous page.';tr.appendChild(td);tbody.appendChild(tr);}
     }
-
-        function exportSalesCSV() {
-      if(!salesHistory.length) {showToast('No sales data to export');return;}
-      const cell=value=>{ let text=String(value??''); if(/^[=+@\-\t\r]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"'; };
-      const rows=[['Receipt','Type','Cashier','Payment','Total'],...salesHistory.map(x=>[x.receiptNo,x.saleType,x.cashier,x.payment_method,x.total])];
-      const url=URL.createObjectURL(new Blob([rows.map(row=>row.map(cell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
-      const link=document.createElement('a');link.href=url;link.download='sales.csv';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    async function exportSalesCSV(){
+      if(archiveExporting||!salesArchive.loaded||!salesArchive.total){showToast('Load the records you want to export first.');return;}
+      const token=authToken,epoch=apiEpoch,version=viewLoads.get('salesModal'),filters={from:salesArchive.from,to:salesArchive.to,receipt:salesArchive.receipt};
+      archiveExporting=true;const button=document.getElementById('historyExport');button.disabled=true;button.textContent='Exporting…';
+      try{
+        let all=[],page=1,total=null;
+        do{
+          const data=await api('/api/sales/history?'+new URLSearchParams({...filters,page:String(page)}));
+          if(authToken!==token||apiEpoch!==epoch||viewLoads.get('salesModal')!==version)throw new Error('Session, filters, or data changed. Reload records and export again.');
+          if(total!==null&&data.total!==total)throw new Error('Records changed during export. Refresh and try again.');
+          total=data.total;if(!data.sales.length&&all.length<total)throw new Error('Export stopped before all records were loaded. Try again.');
+          all.push(...data.sales);page++;
+        }while(all.length<total);
+        const cell=value=>{let t=String(value??'');if(/^[=+@\-\t\r]/.test(t))t="'"+t;return '"'+t.replace(/"/g,'""')+'"';};
+        const rows=[['Receipt','Date/time (Asia/Karachi)','Type','Cashier','Customer','Payment','Currency','Subtotal excluding tax','Order discount','Tax','Total'],...all.map(s=>[s.receipt_no,new Date(s.created_at).toLocaleString('en-GB',{timeZone:'Asia/Karachi'}),s.sale_type,s.cashier_name,s.customer_name||'',s.payment_method,s.currency,s.subtotal,s.discount_amount,s.tax,s.total])];
+        const url=URL.createObjectURL(new Blob([rows.map(row=>row.map(cell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
+        const link=document.createElement('a');link.href=url;link.download=`sales_${filters.from}_to_${filters.to}.csv`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);showToast(`Exported ${all.length} invoices`);
+      }catch(error){if(authToken===token)showToast(error.message);}
+      finally{archiveExporting=false;button.textContent='Export selected records to CSV';button.disabled=!salesArchive.loaded||!salesArchive.total;}
     }
 
     document.getElementById('btnOpenCredit').addEventListener('click',async()=>{
