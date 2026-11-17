@@ -214,6 +214,43 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Archive reads use the same JWT/RLS shop isolation as checkout and invoice reads.
+const historyDate = z.string().regex(/^(?!0000)\d{4}-\d{2}-\d{2}$/).refine(value => {
+  const date = new Date(`${value}T00:00:00+05:00`);
+  const utc = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) && Number.isFinite(utc.getTime()) &&
+    utc.toISOString().slice(0,10) === value && Number(value.slice(0,4)) <= 9998;
+}, {message:'Use a valid date in YYYY-MM-DD format'});
+const historyQuery = z.object({
+  from: historyDate,
+  to: historyDate,
+  page: z.string().regex(/^[1-9]\d{0,7}$/).default('1'),
+  receipt: z.string().trim().max(100).regex(/^[A-Za-z0-9-]*$/).default('')
+}).strict().refine(q => {
+  const days=(Date.parse(q.to+'T00:00:00Z')-Date.parse(q.from+'T00:00:00Z'))/86400000;
+  return days>=0 && days<=365;
+}, {message:'Select a date range of up to 366 days'});
+
+router.get('/history', async (req, res) => {
+  const result = historyQuery.safeParse(req.query);
+  if(!result.success) return res.status(400).json({error:'Invalid history filters',details:result.error.issues.map(i=>({field:i.path.join('.')||'dates',message:i.message}))});
+  const {from,to,receipt}=result.data;
+  const page=Number(result.data.page),pageSize=50,offset=(page-1)*pageSize;
+  const start=new Date(from+'T00:00:00+05:00').toISOString();
+  const end=new Date(Date.parse(to+'T00:00:00+05:00')+86400000).toISOString();
+  try {
+    let query=req.db.from('sales').select(saleColumns,{count:'exact'})
+      .gte('created_at',start).lt('created_at',end)
+      .order('created_at',{ascending:false}).order('id',{ascending:false});
+    if(req.user.role!=='Admin') query=query.eq('cashier_id',req.user.id);
+    if(receipt) query=query.ilike('receipt_no',receipt);
+    const {data,error,count}=await query.range(offset,offset+pageSize-1);
+    if(error)return handleError(res,error);
+    if(count==null)throw new Error('History count unavailable');
+    return res.json({sales:data||[],total:count,page,page_size:pageSize,from,to,timezone:'Asia/Karachi'});
+  } catch(error){return handleError(res,error);}
+});
+
 router.get('/:id', async (req, res) => {
   const parsedId = z.string().uuid().safeParse(req.params.id);
 
