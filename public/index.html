@@ -1819,6 +1819,19 @@
 }
 </style>
 <style>#expenseRecover[hidden]{display:none!important}</style>
+<style>
+#restaurantWorkspace{display:none;padding:24px;overflow:auto;min-height:0;flex:1;background:#f6f8f2}
+body.business-restaurant .app-layout{grid-template-columns:96px minmax(0,1fr)}
+body.business-restaurant #restaurantWorkspace{display:block}
+body.business-restaurant .catalog-body,body.business-restaurant .cart-panel,body.business-restaurant .mobile-tabs,body.business-restaurant #mobileBillSummary{display:none!important}
+#restaurantWorkspace [hidden],#restRecover[hidden]{display:none!important}
+.rest-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px}.rest-heading h1{font-size:clamp(22px,3vw,34px);color:#17382f}.rest-heading p{color:#64748b;font-size:13px;margin-top:5px}
+.rest-tabs{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0}.rest-tabs input,.rest-tabs select{width:auto;max-width:100%;flex:1;min-width:100px}
+.rest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin:16px 0}.rest-card{border:1px solid #dce5d5;border-radius:16px;padding:18px;background:white;min-width:0}.rest-card h3{font-size:16px;overflow-wrap:anywhere;margin-bottom:8px}.rest-card p{font-size:12px;color:#64748b;margin:7px 0;overflow-wrap:anywhere}.rest-card strong{color:#17382f}.rest-status{display:inline-block;padding:4px 9px;background:#e7f0dc;color:#315640;border-radius:20px;font-size:11px;font-weight:700}
+.rest-line{display:grid;grid-template-columns:minmax(120px,1fr) 80px auto;gap:10px;align-items:center;border-bottom:1px solid #e2e8f0;padding:12px 0}.rest-line textarea{grid-column:1/-1}
+@media(max-width:760px){body.business-restaurant .app-layout{grid-template-columns:minmax(0,1fr);padding-bottom:0}body.business-restaurant .catalog-panel{display:flex!important}body.business-restaurant .workspace-nav{bottom:0}#restaurantWorkspace{padding:16px}.rest-heading{align-items:flex-start}.rest-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}}
+@media(max-width:480px){.rest-grid{grid-template-columns:1fr}.rest-heading{flex-direction:column}.rest-line{grid-template-columns:minmax(100px,1fr) 70px auto}}
+</style>
 </head>
 <body class="mode-retail">
 
@@ -1886,6 +1899,19 @@
         </div>
         <div class="workspace-header-meta"><span class="workspace-date" id="workspaceDate"></span><div id="workspaceConnection"></div></div>
       </header>
+
+      <section id="restaurantWorkspace" aria-label="Restaurant workspace">
+        <div class="rest-heading"><div><span class="workspace-eyebrow">RESTAURANT WORKSPACE</span><h1>Service, made simple.</h1><p>Menu, tables, kitchen tickets and bills in one place.</p></div><button class="btn-nav primary" id="restNew">+ New order</button></div>
+        <div class="rest-tabs"><button class="btn-nav" id="restOrdersTab">Orders</button><button class="btn-nav" id="restMenuTab">Menu</button><button class="btn-nav" id="restTablesTab">Tables</button><button class="btn-nav" id="restKitchenTab">Kitchen</button><button class="btn-nav" id="restRefresh">Refresh</button><button class="btn-nav" id="restRecover" hidden>Recover pending action</button></div>
+        <p class="form-hint" id="restMessage" role="status"></p>
+        <div id="restOrdersView">
+          <label class="form-label">Show orders<select class="form-select" id="restStatus"><option>Active</option><option>Open</option><option>Preparing</option><option>Ready</option><option>Served</option><option>Closed</option></select></label>
+          <div id="restOrders" class="rest-grid" style="margin-top:16px"></div>
+          <div class="rest-tabs"><button class="btn-nav" id="restPrev" disabled>Previous</button><span id="restPages" role="status"></span><button class="btn-nav" id="restNext" disabled>Next</button></div>
+        </div>
+        <div id="restMenuView" hidden><div class="rest-tabs"><input class="form-input" id="restMenuSearch" placeholder="Search menu" aria-label="Search menu"><button class="btn-nav primary" id="restAddMenu">Add menu item</button></div><p class="form-hint">Stock means available portions or packaged units. Costs are per portion/unit. Ingredient recipes and add-ons are not included in this version.</p><div id="restMenu" class="rest-grid"></div></div>
+        <div id="restTablesView" hidden><form id="restTableForm" class="rest-tabs"><input class="form-input" id="restTableName" placeholder="Table name" maxlength="80" required aria-label="Table name"><input class="form-input" id="restTableSeats" type="number" min="1" max="100" value="4" required aria-label="Seats"><button class="btn-nav primary">Add table</button></form><div id="restTables" class="rest-grid"></div></div>
+      </section>
 
       <!-- Catalog Main Area -->
       <div class="catalog-body">
@@ -2189,6 +2215,7 @@
             <div class="form-group">
               <label class="form-label">Category *</label>
               <select class="form-select" id="prodCategory">
+                <option value="Meals">Meals</option><option value="Fast food">Fast food</option><option value="Desserts">Desserts</option><option value="Drinks">Drinks</option>
                 <option value="Produce">Produce (Fruits & Veg)</option>
                 <option value="Dairy">Dairy & Milk</option>
                 <option value="Bakery">Bakery & Breads</option>
@@ -2419,7 +2446,7 @@
     <div class="modal-window" style="width:min(960px,100%)">
       <div class="modal-top"><h3 class="modal-heading">Shop expenses</h3><button class="btn-close-modal" type="button" onclick="closeModal('expensesModal')" aria-label="Close expenses">×</button></div>
       <div class="modal-content">
-        <p class="form-hint">Record paid operating expenses. Rent and salaries are entered manually. Stock purchase costs belong in product cost, so they are not deducted twice. Expenses count on the date entered below.</p>
+        <p class="form-hint">Record shop operating expenses. Kitchen wastage can also be recorded automatically. Rent and salaries are entered manually. Stock purchase costs belong in product cost, so they are not deducted twice. Expenses count on the date entered below.</p>
         <form id="expenseForm" class="form-grid" style="margin:16px 0">
           <label class="form-group"><span class="form-label">Expense date *</span><input class="form-input" id="expenseDate" type="date" min="0001-01-01" max="9998-12-31" required></label>
           <label class="form-group"><span class="form-label">Category *</span><select class="form-select" id="expenseCategory"><option>Rent</option><option>Salary</option><option>Utilities</option><option>Transport</option><option>Maintenance</option><option>Supplies</option><option>Marketing</option><option>Other</option></select></label>
@@ -2443,6 +2470,27 @@
       </div>
     </div>
   </div>
+  <div class="modal-overlay" id="restaurantOrderModal"><div class="modal-window" style="width:min(860px,100%)"><div class="modal-top"><h3 class="modal-heading" id="restOrderTitle">New restaurant order</h3><button class="btn-close-modal" onclick="closeModal('restaurantOrderModal')">×</button></div><div class="modal-content">
+    <p class="form-hint">Save first, then send to kitchen by marking Preparing. Items can be edited while Open only. Quantities are checked again at payment; open orders do not reserve stock.</p>
+    <form id="restOrderForm"><div class="form-grid">
+      <label class="form-group"><span class="form-label">Order type</span><select class="form-select" id="restOrderType"><option>Dine-in</option><option>Takeaway</option><option>Delivery</option></select></label>
+      <label class="form-group"><span class="form-label">Table (dine-in)</span><select class="form-select" id="restOrderTable"></select></label>
+      <label class="form-group"><span class="form-label">Customer name</span><input class="form-input" id="restCustomerName" maxlength="150"></label>
+      <label class="form-group"><span class="form-label">Phone</span><input class="form-input" id="restCustomerPhone" maxlength="50"></label>
+      <label class="form-group full"><span class="form-label">Order / delivery instructions</span><textarea class="form-textarea" id="restOrderNote" maxlength="500" rows="2"></textarea></label>
+    </div><div class="rest-tabs"><select class="form-select" id="restItemPicker" aria-label="Menu item"></select><button type="button" class="btn-nav" id="restAddLine">Add item</button></div><div id="restDraftLines"></div><p id="restDraftTotal" style="font-weight:700;margin:16px 0"></p><p class="form-hint" id="restOrderError" role="alert"></p><button class="btn-modal-save" id="restSaveOrder">Save order</button></form>
+  </div></div></div>
+  <div class="modal-overlay" id="restaurantPayModal"><div class="modal-window" style="width:min(600px,100%)"><div class="modal-top"><h3 class="modal-heading">Pay and close order</h3><button class="btn-close-modal" onclick="closeModal('restaurantPayModal')">×</button></div><div class="modal-content">
+    <p id="restPayOrder"></p><form id="restPayForm" class="form-grid">
+      <label class="form-group"><span class="form-label">Payment</span><select class="form-select" id="restPayment"><option>Cash</option><option>Card</option><option>Credit</option></select></label>
+      <label class="form-group"><span class="form-label">Cash received (Cash only)</span><input class="form-input" id="restTendered" type="number" min="0" step="0.01"></label>
+      <label class="form-group full"><span class="form-label">Credit customer (Credit only)</span><select class="form-select" id="restCreditCustomer"></select></label>
+      <label class="form-group"><span class="form-label">Discount type</span><select class="form-select" id="restDiscountType"><option>Amount</option><option>Percent</option></select></label>
+      <label class="form-group"><span class="form-label">Discount value</span><input class="form-input" id="restDiscount" type="number" min="0" step="0.01" value="0" required></label>
+      <div class="form-group full"><strong id="restPayTotal"></strong><p class="form-hint" id="restPayError" role="alert"></p><button class="btn-modal-save" id="restPaySubmit">Confirm payment</button></div>
+    </form>
+  </div></div></div>
+
   <div class="login-overlay" id="loginOverlay" style="display:grid">
     <section class="workspace-login-story" aria-label="Welcome to your POS">
       <div class="login-platform-brand neutral-shopping-logo" role="img" aria-label="Shopping POS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h2l2.4 11.5a2 2 0 0 0 2 1.5h8.8a2 2 0 0 0 2-1.6L22 7H6"/><circle cx="10" cy="21" r="1"/><circle cx="19" cy="21" r="1"/></svg></div>
@@ -2555,7 +2603,7 @@
       document.getElementById('stockDialog')?.close();
       invalidateApiCache();Object.keys(resourceSignatures).forEach(key=>delete resourceSignatures[key]);
       salesArchive={rows:[],page:1,total:0,from:'',to:'',receipt:'',loaded:false,token:''};archiveReport=null;document.getElementById('salesHistoryFilters').reset();document.getElementById('salesTableBody').replaceChildren();
-      window.resetShopExpenses?.();
+      window.resetRestaurant?.();window.resetShopExpenses?.();
       authToken=''; writeSession('pos_access_token',null);
       currentUser={name:'Not signed in',role:'Guest',id:null};
       products=[]; staffList=[]; creditRecords=[]; customers=[]; salesHistory=[]; cart.clear(); resetCheckoutDiscount();
@@ -2779,11 +2827,12 @@
 
       const isAdmin = currentUser.role === 'Admin';
       document.getElementById('btnOpenExpenses').style.display=isAdmin?'inline-flex':'none';
-      document.getElementById('btnOpenReturns').style.display=isAdmin?'inline-flex':'none';
+      document.getElementById('btnOpenReturns').style.display=isAdmin&&currentUser.business_type!=='Restaurant'?'inline-flex':'none';
       document.getElementById('btnOpenStock').style.display=isAdmin?'inline-flex':'none';
       document.getElementById('btnOpenSettings').style.display = isAdmin ? 'inline-flex' : 'none';
       document.getElementById('btnOpenStaff').style.display = isAdmin ? 'inline-flex' : 'none';
       document.getElementById('btnOpenAddProduct').style.display=isAdmin?'inline-flex':'none';
+      window.applyBusinessMode?.();
     }
 
     /* Category Rendering */
@@ -2849,7 +2898,7 @@
         const totalPacks = Math.floor(p.stock / packSize);
         const isLowStock = p.stock < (packSize);
         const isAdmin = currentUser.role === 'Admin';
-      document.getElementById('btnOpenReturns').style.display=isAdmin?'inline-flex':'none';
+      document.getElementById('btnOpenReturns').style.display=isAdmin&&currentUser.business_type!=='Restaurant'?'inline-flex':'none';
       document.getElementById('btnOpenStock').style.display=isAdmin?'inline-flex':'none';
 
         return `
@@ -4179,5 +4228,72 @@
 })();
 </script>
 
+<script>
+(()=>{
+ const $=id=>document.getElementById(id),money=(n,c=storeSettings.currency)=>`${c} ${Number(n||0).toFixed(2)}`;
+ let account='',tables=[],orders=[],draft=null,lines=[],payOrder=null,busy=false,generation=0,actionVersion=0,page=1,total=0;
+ const isRestaurant=()=>!!authToken&&currentUser.business_type==='Restaurant';
+ const key=()=>`pos_pending_restaurant_${currentUser.id}`;
+ function pending(){try{return JSON.parse(readSession(key())||'null');}catch{return null;}}
+ function msg(text){$('restMessage').textContent=text;}
+ function recoverUI(){$('restRecover').hidden=!pending();}
+ window.resetRestaurant=()=>{account='';tables=[];orders=[];draft=null;lines=[];payOrder=null;busy=false;generation++;actionVersion++;$('restOrders').replaceChildren();$('restMenu').replaceChildren();$('restTables').replaceChildren();$('restOrderForm').reset();$('restPayForm').reset();$('restDraftLines').replaceChildren();$('restRecover').hidden=true;$('restStatus').value='Active';$('restMessage').textContent='';$('restOrderError').textContent='';$('restPayError').textContent='';$('restPayOrder').textContent='';$('restItemPicker').replaceChildren();$('restOrderTable').replaceChildren();page=1;total=0;view('Orders');document.body.classList.remove('business-restaurant');};
+ window.applyBusinessMode=()=>{
+  const active=isRestaurant();document.body.classList.toggle('business-restaurant',active);
+  const sell=$('workspaceSell').querySelector('span:last-child');if(sell)sell.textContent=active?'Restaurant':'Sell';
+  const add=$('btnOpenAddProduct').querySelector('span:last-child');if(add)add.textContent=active?'Add menu item':'Add item';
+  for(const id of ['prodWholesaleUnit','prodWholesalePackSize','prodWholesalePrice'])$(id).closest('.form-group').style.display=active?'none':'';
+  if(active){renderMenu();renderPicker();if(account!==authToken){account=authToken;tables=[];orders=[];draft=null;lines=[];recoverUI();void refresh();}}
+ };
+ function view(which){for(const n of ['Orders','Menu','Tables'])$('rest'+n+'View').hidden=n!==which;}
+ $('restOrdersTab').onclick=()=>{view('Orders');refresh(1);};$('restMenuTab').onclick=()=>{view('Menu');renderMenu();};$('restTablesTab').onclick=()=>{view('Tables');refresh(page);};$('restKitchenTab').onclick=()=>{view('Orders');$('restStatus').value='Preparing';refresh(1);};
+ function renderMenu(){const q=$('restMenuSearch').value.trim().toLowerCase();$('restMenu').innerHTML=products.filter(p=>p.name.toLowerCase().includes(q)).map(p=>`<article class="rest-card"><h3>${esc(p.name)}</h3><p>${esc(p.category||p.cat)} · ${p.stock} available ${esc(p.unit)}</p><strong>${esc(money(p.retail_price))}</strong><p>Cost: ${p.cost_price==null?'Not set':esc(money(p.cost_price))}</p><div class="rest-tabs"><button class="btn-nav" data-edit-menu="${p.id}">Edit menu item</button></div></article>`).join('')||'<p>No menu items yet. Add one to start taking orders.</p>';}
+ $('restMenuSearch').oninput=renderMenu;$('restMenu').onclick=e=>{const b=e.target.closest('[data-edit-menu]');if(b)editProductModal(Number(b.dataset.editMenu));};
+ $('restAddMenu').onclick=()=>$('btnOpenAddProduct').click();
+ $('btnOpenAddProduct').addEventListener('click',()=>{if(!isRestaurant())return;$('productModalTitle').textContent='Add menu item';$('prodCategory').value='Meals';$('prodUnit').value='portion';$('prodWholesaleUnit').value='portion';$('prodWholesalePackSize').value='1';$('prodWholesalePrice').value='0';$('prodStock').value='0';});
+ $('productForm').addEventListener('submit',()=>{if(isRestaurant()){$('prodWholesaleUnit').value=$('prodUnit').value||'portion';$('prodWholesalePackSize').value='1';$('prodWholesalePrice').value=$('prodRetailPrice').value;}},true);
+ function renderPicker(){const prior=$('restItemPicker').value;$('restItemPicker').replaceChildren(new Option('Choose a menu item',''));products.forEach(p=>$('restItemPicker').add(new Option(`${p.name} · ${money(p.retail_price)} · ${p.stock} available`,p.id)));$('restItemPicker').value=prior;}
+ function renderTableSelect(){const prior=$('restOrderTable').value;$('restOrderTable').replaceChildren(new Option('Choose a table',''));tables.filter(t=>!t.active_order_id||t.active_order_id===draft?.id).forEach(t=>$('restOrderTable').add(new Option(`${t.name} (${t.seats} seats)`,t.id)));$('restOrderTable').value=draft?.table_id||prior;const dine=$('restOrderType').value==='Dine-in';$('restOrderTable').disabled=!dine;$('restOrderTable').required=dine;if(!dine)$('restOrderTable').value='';}
+ $('restOrderType').onchange=renderTableSelect;
+ function renderTables(){$('restTables').innerHTML=tables.map(t=>`<article class="rest-card"><span class="rest-status">${t.active_order_id?'Occupied':'Available'}</span><h3>${esc(t.name)}</h3><p>${t.seats} seats${t.active_status?' · '+esc(t.active_status):''}</p>${t.active_order_id?`<button class="btn-nav" data-open-order="${t.active_order_id}">View order</button>`:`<button class="btn-nav" data-table-order="${t.id}">New dine-in order</button>`}</article>`).join('')||'<p>Add tables here for dine-in service.</p>';}
+ $('restTables').onclick=e=>{const open=e.target.closest('[data-open-order]'),add=e.target.closest('[data-table-order]');if(open)openOrder(open.dataset.openOrder);if(add){newOrder();$('restOrderType').value='Dine-in';renderTableSelect();$('restOrderTable').value=add.dataset.tableOrder;}};
+ function renderOrders(){$('restOrders').innerHTML=orders.map(o=>{const t=tables.find(t=>t.id===o.table_id);return `<article class="rest-card"><span class="rest-status">${esc(o.status)}</span><h3>${esc(o.order_no)}</h3><p>${esc(o.order_type)}${t?' · '+esc(t.name):''}${o.customer_name?' · '+esc(o.customer_name):''}</p><p>${o.items.reduce((s,i)=>s+i.qty,0)} items · ${esc(new Date(o.created_at).toLocaleString('en-GB',{timeZone:'Asia/Karachi'}))}</p><strong>${esc(money(o.total,o.currency))}</strong><div class="rest-tabs"><button class="btn-nav" data-order-action="view" data-id="${o.id}">View / ticket</button>${o.status==='Open'?`<button class="btn-nav" data-order-action="edit" data-id="${o.id}">Edit</button><button class="btn-nav" data-order-action="Preparing" data-id="${o.id}">Send to kitchen</button><button class="btn-nav" data-order-action="Cancelled" data-id="${o.id}">Cancel</button>`:''}${o.status==='Preparing'?`<button class="btn-nav" data-order-action="Ready" data-id="${o.id}">Mark Ready</button>`:''}${o.status==='Ready'?`<button class="btn-nav" data-order-action="Served" data-id="${o.id}">Mark Served</button>`:''}${['Ready','Served'].includes(o.status)?`<button class="btn-nav primary" data-order-action="pay" data-id="${o.id}">Pay & close</button>`:''}${['Preparing','Ready','Served'].includes(o.status)?`<button class="btn-nav" data-order-action="Cancelled" data-id="${o.id}">Cancel / wastage</button>`:''}${o.paid_sale_id?`<button class="btn-nav" data-order-action="invoice" data-id="${o.id}">Invoice</button>`:''}</div></article>`;}).join('')||'<p>No orders in this view.</p>';$('restPages').textContent=`Page ${page} of ${Math.max(1,Math.ceil(total/50))} · ${total} orders`;$('restPrev').disabled=page<=1;$('restNext').disabled=page*50>=total;}
+ async function refresh(next=1){if(!isRestaurant())return;const token=authToken,epoch=apiEpoch,version=++generation;msg('Refreshing restaurant…');try{const [ts,os]=await Promise.all([api('/api/restaurant/tables'),api('/api/restaurant/orders?'+new URLSearchParams({status:$('restStatus').value,page:String(next)}))]);if(authToken!==token||version!==generation)return;if(epoch!==apiEpoch)throw Error('Data changed. Refresh restaurant.');tables=ts;orders=os.orders;page=os.page;total=os.total;renderTables();renderOrders();renderTableSelect();renderPicker();recoverUI();msg('Restaurant records loaded. Refresh to see changes from other devices.');}catch(e){if(authToken===token&&version===generation)msg(e.message);}}
+ $('restRefresh').onclick=async()=>{try{await syncFromBackend(['products','customers']);if(isRestaurant())refresh(page);}catch(e){msg(e.message);}};$('restStatus').onchange=()=>refresh(1);$('restPrev').onclick=()=>refresh(Math.max(1,page-1));$('restNext').onclick=()=>refresh(page+1);
+ async function run(url,body,recover=false){
+  if(busy||!isRestaurant())return;const p=pending();if(p&&!recover){recoverUI();throw Error('Recover the earlier unconfirmed restaurant action first.');}
+  const token=authToken,k=key(),op=++actionVersion;busy=true;writeSession(k,JSON.stringify({url,body}));recoverUI();
+  const clear=()=>{try{const saved=JSON.parse(readSession(k)||'null');if(JSON.stringify(saved)===JSON.stringify({url,body}))writeSession(k,null);}catch{}};
+  try{const result=await post(url,body);clear();if(authToken!==token||op!==actionVersion)return;
+   if(result.sale){showReceiptPreview(normalSale(result.sale,result.items));closeModal('restaurantPayModal');payOrder=null;await syncFromBackend(['products','sales','credits']);}
+   if(result.order&&url==='/api/restaurant/orders'){closeModal('restaurantOrderModal');draft=null;lines=[];}
+   if(result.table)$('restTableForm').reset();
+   msg('Saved successfully.');await refresh(1);return result;
+  }catch(e){if(e.status>=400&&e.status<500)clear();if(authToken===token&&op===actionVersion){msg(e.message+(pending()?' Recover pending action to check the same request.':''));if(!pending())await refresh(page);}throw e;}
+  finally{if(authToken===token&&op===actionVersion){busy=false;recoverUI();}}
+ }
+ $('restRecover').onclick=()=>{const p=pending();if(p)run(p.url,p.body,true).catch(e=>msg(e.message));};
+ $('restTableForm').onsubmit=e=>{e.preventDefault();run('/api/restaurant/tables',{request_id:crypto.randomUUID(),name:$('restTableName').value.trim(),seats:Number($('restTableSeats').value)}).catch(e=>msg(e.message));};
+ function newOrder(){if(!isRestaurant())return;draft=null;lines=[];$('restOrderForm').reset();$('restOrderError').textContent='';$('restOrderTitle').textContent='New restaurant order';renderTableSelect();renderPicker();renderLines();openModal('restaurantOrderModal');}
+ $('restNew').onclick=newOrder;
+ function renderLines(){$('restDraftLines').innerHTML=lines.map(i=>`<div class="rest-line"><strong>${esc(i.name)}<small style="display:block">${esc(money(i.price,draft?.currency))} each</small></strong><input class="form-input" aria-label="Quantity for ${esc(i.name)}" type="number" min="1" max="1000000" step="1" value="${i.qty}" data-line-qty="${i.product_id}" required><button class="btn-nav" type="button" data-remove-line="${i.product_id}">×</button><textarea class="form-textarea" placeholder="Special instructions" aria-label="Instructions for ${esc(i.name)}" maxlength="500" rows="1" data-line-note="${i.product_id}">${esc(i.note||'')}</textarea></div>`).join('');draftTotal();}
+ function draftTotal(){const sub=lines.reduce((s,i)=>s+i.price*i.qty,0),tax=draft?Number(draft.tax_rate):Number(storeSettings.taxRate);$('restDraftTotal').textContent=`Estimated total: ${money(sub+Math.round(sub*tax)/100,draft?.currency)} (before checkout discount)`;}
+ $('restAddLine').onclick=()=>{const p=products.find(p=>p.id===Number($('restItemPicker').value));if(!p)return;const prior=lines.find(i=>i.product_id===p.id);if(prior)prior.qty++;else lines.push({product_id:p.id,name:p.name,qty:1,price:p.retail_price,note:''});renderLines();};
+ $('restDraftLines').oninput=e=>{if(e.target.dataset.lineQty){const i=lines.find(i=>i.product_id===Number(e.target.dataset.lineQty));if(i)i.qty=Number(e.target.value);draftTotal();}if(e.target.dataset.lineNote){const i=lines.find(i=>i.product_id===Number(e.target.dataset.lineNote));if(i)i.note=e.target.value;}};
+ $('restDraftLines').onclick=e=>{const b=e.target.closest('[data-remove-line]');if(b){lines=lines.filter(i=>i.product_id!==Number(b.dataset.removeLine));renderLines();}};
+ $('restOrderForm').onsubmit=async e=>{e.preventDefault();if(!lines.length){$('restOrderError').textContent='Add at least one menu item.';return;}const b={request_id:crypto.randomUUID(),order_id:draft?.id||null,version:draft?.version||0,order_type:$('restOrderType').value,table_id:$('restOrderType').value==='Dine-in'?$('restOrderTable').value||null:null,customer_name:$('restCustomerName').value.trim(),customer_phone:$('restCustomerPhone').value.trim(),note:$('restOrderNote').value.trim(),items:lines.map(i=>({product_id:i.product_id,qty:i.qty,note:i.note||''}))};$('restSaveOrder').disabled=true;try{await run('/api/restaurant/orders',b);}catch(err){$('restOrderError').textContent=err.message;}finally{$('restSaveOrder').disabled=false;}};
+ async function getOrder(id){return api('/api/restaurant/orders/'+id);}
+ function editOrder(o){if(o.status!=='Open')throw Error('Only Open orders can be edited.');draft=o;lines=JSON.parse(JSON.stringify(o.items));$('restOrderType').value=o.order_type;$('restCustomerName').value=o.customer_name;$('restCustomerPhone').value=o.customer_phone;$('restOrderNote').value=o.note;$('restOrderTitle').textContent='Edit '+o.order_no;$('restOrderError').textContent='';renderTableSelect();renderPicker();renderLines();openModal('restaurantOrderModal');}
+ function ticket(o){const t=tables.find(t=>t.id===o.table_id);$('receiptModalHeading').textContent='Order / kitchen ticket';$('receiptContainer').innerHTML=`<div class="receipt-center"><h2>KITCHEN TICKET</h2><p>${esc(o.order_no)}</p><p>${esc(o.status)} · ${esc(o.order_type)}${t?' · '+esc(t.name):''}</p><p>Not a payment receipt</p></div><hr>${o.items.map(i=>`<p><b>${i.qty} × ${esc(i.name)}</b>${i.note?'<br>'+esc(i.note):''}</p>`).join('')}<hr><p>${esc(o.customer_name)} ${esc(o.customer_phone)}</p><p>${esc(o.note)}</p>`;openModal('receiptModal');}
+ async function openOrder(id){const token=authToken;try{const o=await getOrder(id);if(token===authToken)ticket(o);}catch(e){msg(e.message);}}
+ function pay(o){payOrder=o;$('restPayForm').reset();$('restPayOrder').textContent=`${o.order_no} · ${money(o.total,o.currency)}`;$('restCreditCustomer').replaceChildren(new Option('Select credit customer',''));customers.forEach(c=>$('restCreditCustomer').add(new Option(c.name,c.id)));$('restPayError').textContent='';payTotal();openModal('restaurantPayModal');}
+ function payTotal(){if(!payOrder)return;const value=Number($('restDiscount').value),sub=Math.round(Number(payOrder.subtotal)*100),discount=$('restDiscountType').value==='Percent'?Math.round(sub*value/100):Math.round(value*100),net=sub-discount,tax=Math.round(net*Number(payOrder.tax_rate)/100);$('restPayTotal').textContent=`Total: ${money((net+tax)/100,payOrder.currency)}`;}
+ $('restDiscount').oninput=payTotal;$('restDiscountType').onchange=payTotal;
+ $('restPayForm').onsubmit=async e=>{e.preventDefault();if(!payOrder)return;const b={request_id:crypto.randomUUID(),version:payOrder.version,payment_method:$('restPayment').value,tendered_amount:$('restPayment').value==='Cash'?($('restTendered').value.trim()===''?null:Number($('restTendered').value)):null,customer_id:$('restPayment').value==='Credit'?Number($('restCreditCustomer').value)||null:null,discount_type:$('restDiscountType').value,discount_value:Number($('restDiscount').value)};$('restPaySubmit').disabled=true;try{await run(`/api/restaurant/orders/${payOrder.id}/pay`,b);}catch(err){$('restPayError').textContent=err.message;}finally{$('restPaySubmit').disabled=false;}};
+ $('restOrders').onclick=async e=>{const b=e.target.closest('[data-order-action]');if(!b||busy)return;const token=authToken;b.disabled=true;try{const o=await getOrder(b.dataset.id);if(authToken!==token)return;const a=b.dataset.orderAction;if(a==='view')ticket(o);else if(a==='edit')editOrder(o);else if(a==='pay')pay(o);else if(a==='invoice'){const sale=await api('/api/sales/'+o.paid_sale_id);if(authToken===token)showReceiptPreview(normalSale(sale,sale.sale_items));}else{let reason='';if(a==='Cancelled'){reason=prompt(o.status==='Open'?'Cancel this unprepared order? Enter a reason.':'Cancel prepared food? This consumes its portions as kitchen wastage and records their purchase cost as an expense. Enter a reason.');if(reason===null)return;}await run(`/api/restaurant/orders/${o.id}/status`,{version:o.version,status:a,reason});}}catch(err){msg(err.message);}finally{b.disabled=false;}};
+ window.applyBusinessMode();
+})();
+
+</script>
 </body>
 </html>
