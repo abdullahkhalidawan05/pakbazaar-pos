@@ -67,7 +67,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     const shopClient = createUserClient(data.session.access_token);
     const { data: profile, error: profileError } = await shopClient
       .from('staff_profiles')
-      .select('id, name, role, is_active, shop_id')
+      .select('id,name,role,is_active,shop_id,shop:shops!staff_profiles_shop_id_fkey(id,name,is_active,owner_id,business_type)')
       .eq('id', data.user.id)
       .maybeSingle();
 
@@ -81,6 +81,8 @@ router.post('/login', loginLimiter, async (req, res) => {
       });
     }
 
+    const shop=profile.shop;
+    if(!shop||shop.id!==profile.shop_id||shop.owner_id!==data.user.id||!shop.is_active||!['Retail','Restaurant'].includes(shop.business_type))return res.status(403).json({error:'Shop access is disabled'});
     return res.json({
       message: 'Login successful',
       access_token: data.session.access_token,
@@ -89,7 +91,9 @@ router.post('/login', loginLimiter, async (req, res) => {
         id: profile.id,
         name: profile.name,
         role: profile.role,
-        shop_id: profile.shop_id
+        shop_id: profile.shop_id,
+        shop_name:shop.name,
+        business_type:shop.business_type
       }
     });
   } catch (error) {
