@@ -76,17 +76,14 @@ router.get('/summary', async (req, res) => {
   }
 
   try {
-    const { data, error } = await req.db.rpc('get_pos_report', {
-      p_staff_id: req.user.id,
-      p_from_date: from,
-      p_to_date: to
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    return res.json(data);
+    const args={p_staff_id:req.user.id,p_from_date:from,p_to_date:to};
+    const [report,expenses]=await Promise.all([
+      req.db.rpc('get_pos_report',args),
+      req.db.rpc('get_shop_expense_summary',{...args,p_category:null})
+    ]);
+    if(report.error)throw report.error;
+    if(expenses.error)throw expenses.error;
+    return res.json({...report.data,expenses:expenses.data});
   } catch (error) {
     console.error('Report failed:', {
       code: error.code,
