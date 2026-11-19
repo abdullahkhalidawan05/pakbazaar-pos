@@ -1818,6 +1818,7 @@
  .fast-view-status.is-error { background:#fff1ee;border-color:#f0d5cd;color:#a95847; }
 }
 </style>
+<style>#expenseRecover[hidden]{display:none!important}</style>
 </head>
 <body class="mode-retail">
 
@@ -1866,6 +1867,7 @@
             + Product
           </button>
           <button class="btn-nav" id="btnOpenSales">Sales</button>
+          <button class="btn-nav" id="btnOpenExpenses">Expenses</button>
           <button class="btn-nav" id="btnOpenReturns" style="display:none">Return / Exchange</button>
           <button class="btn-nav" id="btnOpenStock" style="display:none">Stock</button>
           <button class="btn-nav" id="btnOpenCredit">Khata / Udhaar</button>
@@ -2333,6 +2335,10 @@
           <span class="metric-val" id="metricDailyProfit">…</span>
           <p id="profitDetail" class="form-hint" role="status">Sales after discounts, excluding tax, minus product cost. Asia/Karachi day. Rent and other expenses are not deducted.</p>
         </div>
+        <div class="metrics-grid" style="margin-bottom:14px">
+          <div class="metric-card"><span class="metric-label">Recorded expenses · selected dates</span><span class="metric-val" id="metricRecordedExpenses">…</span></div>
+          <div class="metric-card"><span class="metric-label">Profit after recorded expenses</span><span class="metric-val" id="metricAfterExpenses">…</span><p class="form-hint">Product profit minus active expenses dated in this period. Includes only costs entered here.</p></div>
+        </div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
           <h4 style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--slate-500);">Completed Transactions</h4>
           <button class="btn-nav" id="historyExport" onclick="exportSalesCSV()">Export selected records to CSV</button>
@@ -2409,6 +2415,34 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="expensesModal">
+    <div class="modal-window" style="width:min(960px,100%)">
+      <div class="modal-top"><h3 class="modal-heading">Shop expenses</h3><button class="btn-close-modal" type="button" onclick="closeModal('expensesModal')" aria-label="Close expenses">×</button></div>
+      <div class="modal-content">
+        <p class="form-hint">Record paid operating expenses. Rent and salaries are entered manually. Stock purchase costs belong in product cost, so they are not deducted twice. Expenses count on the date entered below.</p>
+        <form id="expenseForm" class="form-grid" style="margin:16px 0">
+          <label class="form-group"><span class="form-label">Expense date *</span><input class="form-input" id="expenseDate" type="date" min="0001-01-01" max="9998-12-31" required></label>
+          <label class="form-group"><span class="form-label">Category *</span><select class="form-select" id="expenseCategory"><option>Rent</option><option>Salary</option><option>Utilities</option><option>Transport</option><option>Maintenance</option><option>Supplies</option><option>Marketing</option><option>Other</option></select></label>
+          <label class="form-group"><span class="form-label">Title / paid to *</span><input class="form-input" id="expenseTitle" maxlength="150" required placeholder="e.g. November rent / staff salary"></label>
+          <label class="form-group"><span class="form-label" id="expenseAmountLabel">Amount *</span><input class="form-input" id="expenseAmount" type="number" min="0.01" max="999999999999.99" step="0.01" required></label>
+          <label class="form-group"><span class="form-label">Payment method *</span><select class="form-select" id="expensePayment"><option>Cash</option><option>Card</option><option>Bank transfer</option><option>Other</option></select></label>
+          <label class="form-group"><span class="form-label">Note (optional)</span><textarea class="form-textarea" id="expenseNote" maxlength="500" rows="2"></textarea></label>
+          <div class="form-group full" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn-modal-save" id="expenseSave" type="submit">Save expense</button><button class="btn-nav" id="expenseRecover" type="button" hidden>Recover pending expense</button></div>
+        </form>
+        <p id="expenseMessage" class="form-hint" role="status"></p>
+        <hr style="margin:16px 0">
+        <form id="expenseFilters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
+          <label class="form-label">From<input class="form-input" id="expenseFrom" type="date" required max="9998-12-31"></label>
+          <label class="form-label">To<input class="form-input" id="expenseTo" type="date" required max="9998-12-31"></label>
+          <label class="form-label">Category<select class="form-select" id="expenseFilterCategory"><option value="">All categories</option><option>Rent</option><option>Salary</option><option>Utilities</option><option>Transport</option><option>Maintenance</option><option>Supplies</option><option>Marketing</option><option>Other</option></select></label>
+          <button class="btn-nav primary" type="submit">View expenses</button><button class="btn-nav" id="expenseToday" type="button">Today</button>
+        </form>
+        <div class="metric-card" style="margin:16px 0"><span class="metric-label">Active expenses · selected dates</span><div id="expenseTotals" style="font-size:20px;font-weight:700" role="status">…</div><p class="form-hint" id="expenseBreakdown"></p></div>
+        <div style="overflow:auto"><table class="custom-table"><thead><tr><th>Date</th><th>Expense / category</th><th>Amount</th><th>Payment</th><th>Status</th><th>Action</th></tr></thead><tbody id="expenseRows"></tbody></table></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:12px"><button class="btn-nav" id="expensePrev" type="button" disabled>Previous</button><span id="expensePages" role="status"></span><button class="btn-nav" id="expenseNext" type="button" disabled>Next</button></div>
+      </div>
+    </div>
+  </div>
   <div class="login-overlay" id="loginOverlay" style="display:grid">
     <section class="workspace-login-story" aria-label="Welcome to your POS">
       <div class="login-platform-brand neutral-shopping-logo" role="img" aria-label="Shopping POS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h2l2.4 11.5a2 2 0 0 0 2 1.5h8.8a2 2 0 0 0 2-1.6L22 7H6"/><circle cx="10" cy="21" r="1"/><circle cx="19" cy="21" r="1"/></svg></div>
@@ -2521,6 +2555,7 @@
       document.getElementById('stockDialog')?.close();
       invalidateApiCache();Object.keys(resourceSignatures).forEach(key=>delete resourceSignatures[key]);
       salesArchive={rows:[],page:1,total:0,from:'',to:'',receipt:'',loaded:false,token:''};archiveReport=null;document.getElementById('salesHistoryFilters').reset();document.getElementById('salesTableBody').replaceChildren();
+      window.resetShopExpenses?.();
       authToken=''; writeSession('pos_access_token',null);
       currentUser={name:'Not signed in',role:'Guest',id:null};
       products=[]; staffList=[]; creditRecords=[]; customers=[]; salesHistory=[]; cart.clear(); resetCheckoutDiscount();
@@ -2743,6 +2778,7 @@
       document.getElementById('activeUserAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
 
       const isAdmin = currentUser.role === 'Admin';
+      document.getElementById('btnOpenExpenses').style.display=isAdmin?'inline-flex':'none';
       document.getElementById('btnOpenReturns').style.display=isAdmin?'inline-flex':'none';
       document.getElementById('btnOpenStock').style.display=isAdmin?'inline-flex':'none';
       document.getElementById('btnOpenSettings').style.display = isAdmin ? 'inline-flex' : 'none';
@@ -3465,7 +3501,15 @@
       const row=report.currencies.find(x=>x.currency===currency)||{};
       ['Net sales · selected dates','Cash sales · selected dates','Card sales · selected dates','Outstanding credit now'].forEach((label,i)=>document.querySelectorAll('#salesModal .metric-label')[i].textContent=label);
       ['metricTotalRevenue','metricRetailRevenue','metricWholesaleRevenue','metricCreditSales'].forEach((id,i)=>document.getElementById(id).textContent=archiveMoney([row.net_sales_including_tax||0,row.cash_sales||0,row.card_sales||0,row.outstanding_credit_now||0][i],currency));
-      const profit=(report.profit||[]).find(x=>x.currency===currency),metric=document.getElementById('metricDailyProfit'),detail=document.getElementById('profitDetail');
+      const expense=(report.expenses?.currencies||[]).find(x=>x.currency===currency);
+      const expenseTotal=report.expenses?Number(expense?.total||0):null;
+      document.getElementById('metricRecordedExpenses').textContent=expenseTotal===null?'Unavailable':archiveMoney(expenseTotal,currency);
+      const knownProfit=(report.profit||[]).find(x=>x.currency===currency)||(Array.isArray(report.profit)?{gross_profit:0,net_sales:0,product_cost:0,missing_cost_lines:0}:null);
+      const after=document.getElementById('metricAfterExpenses');
+      if(expenseTotal===null||!knownProfit){after.textContent='Unavailable';}
+      else if(Number(knownProfit.missing_cost_lines)>0||knownProfit.gross_profit===null){after.textContent='Incomplete';}
+      else {const net=Number(knownProfit.gross_profit)-expenseTotal;after.textContent=archiveMoney(net,currency);after.style.color=net<0?'#b91c1c':'var(--accent)';}
+      const profit=knownProfit,metric=document.getElementById('metricDailyProfit'),detail=document.getElementById('profitDetail');
       if(!profit){metric.textContent='Unavailable';detail.textContent='Product profit requires the installed profit SQL update.';}
       else if(Number(profit.missing_cost_lines)>0){metric.textContent='Incomplete';detail.textContent=`${profit.missing_cost_lines} sale/return lines have no historical cost. Add costs to products for future sales; historical costs remain unknown.`;}
       else {metric.textContent=archiveMoney(profit.gross_profit,currency);metric.style.color=Number(profit.gross_profit)<0?'#b91c1c':'var(--accent)';detail.textContent=`Net sales excluding tax: ${archiveMoney(profit.net_sales,currency)} · Product cost: ${archiveMoney(profit.product_cost,currency)}. Includes discounts, returns and exchanges; before rent and other expenses.`;}
@@ -3489,7 +3533,7 @@
         if(apiEpoch!==epoch)throw new Error('Data changed while loading. Refresh Sales to load current records.');
         salesArchive={...filters,rows:history.sales.map(s=>normalSale(s)),page:history.page,total:history.total,loaded:true,token};archiveReport=report;
         const selector=document.getElementById('historyCurrency'),previous=selector.value;selector.replaceChildren();
-        const currencies=[...new Set([...(report?.currencies||[]).map(x=>x.currency),...history.sales.map(x=>x.currency),storeSettings.currency])];
+        const currencies=[...new Set([...(report?.currencies||[]).map(x=>x.currency),...(report?.expenses?.currencies||[]).map(x=>x.currency),...history.sales.map(x=>x.currency),storeSettings.currency])];
         currencies.forEach(c=>selector.add(new Option(c,c)));selector.value=currencies.includes(previous)?previous:storeSettings.currency;
         renderArchiveReport();renderSalesTable();
         const pages=Math.max(1,Math.ceil(history.total/history.page_size));
@@ -3965,6 +4009,7 @@
  const paths={
   workspaceSell:'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
   btnOpenAddProduct:'M12 3l9 5-9 5-9-5 9-5z M3 8v9l9 5 9-5V8 M12 13v9',
+  btnOpenExpenses:'M4 3h16v18l-4-2-4 2-4-2-4 2V3 M8 8h8 M8 12h8',
   btnOpenSales:'M4 19V9 M10 19V4 M16 19v-7 M22 19H2',
   btnOpenReturns:'M4 8h11a5 5 0 010 10h-3 M4 8l5-5 M4 8l5 5',
   btnOpenStock:'M3 7l9-4 9 4-9 4-9-4z M3 7v10l9 4 9-4V7 M12 11v10',
@@ -3972,7 +4017,7 @@
   btnOpenStaff:'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2 M9 11a4 4 0 100-8 4 4 0 000 8 M22 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75',
   btnOpenSettings:'M12 8a4 4 0 100 8 4 4 0 000-8 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2'
  };
- const labels={workspaceSell:'Sell',btnOpenAddProduct:'Add item',btnOpenSales:'Sales',btnOpenReturns:'Returns',btnOpenStock:'Inventory',btnOpenCredit:'Khata',btnOpenStaff:'Account',btnOpenSettings:'Settings'};
+ const labels={workspaceSell:'Sell',btnOpenAddProduct:'Add item',btnOpenSales:'Sales',btnOpenExpenses:'Expenses',btnOpenReturns:'Returns',btnOpenStock:'Inventory',btnOpenCredit:'Khata',btnOpenStaff:'Account',btnOpenSettings:'Settings'};
  Object.entries(paths).forEach(([id,path])=>{
   const b=$(id);if(!b)return;
   b.innerHTML=`<span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg></span><span>${labels[id]}</span>`;
@@ -4067,5 +4112,72 @@
  });
 })();
 </script>
+<script>
+(()=>{
+ const $=id=>document.getElementById(id);
+ let page=1,total=0,filters=null,loadId=0,actionId=0,busy=false;
+ const money=(amount,currency)=>`${currency} ${Number(amount).toFixed(2)}`;
+ const pendingKey=()=>`pos_pending_expense_${currentUser.id}`;
+ function pending(){try{return JSON.parse(readSession(pendingKey())||'null');}catch{return null;}}
+ function recovery(){ $('expenseRecover').hidden=!pending(); }
+ function message(text){$('expenseMessage').textContent=text;}
+ window.resetShopExpenses=()=>{loadId++;actionId++;busy=false;page=1;total=0;filters=null;$('expenseForm').reset();$('expenseFilters').reset();$('expenseRows').replaceChildren();$('expenseTotals').textContent='…';$('expenseBreakdown').textContent='';$('expensePages').textContent='';$('expenseSave').disabled=false;$('expenseRecover').hidden=true;message('');};
+ async function refresh(nextPage=1){
+  if(!authToken||currentUser.role!=='Admin')return;
+  if(!filters){filters={from:shopToday(),to:shopToday(),category:''};$('expenseFrom').value=filters.from;$('expenseTo').value=filters.to;}
+  const token=authToken,epoch=apiEpoch,version=++loadId,selected={...filters};
+  $('expenseRows').replaceChildren();$('expenseTotals').textContent='Loading…';$('expenseBreakdown').textContent='';$('expensePrev').disabled=$('expenseNext').disabled=true;$('expensePages').textContent='Loading records…';
+  try{
+   const [list,summary]=await Promise.all([api('/api/expenses?'+new URLSearchParams({...selected,page:String(nextPage)})),api('/api/expenses/summary?'+new URLSearchParams(selected))]);
+   if(authToken!==token||loadId!==version)return;if(epoch!==apiEpoch)throw new Error('Data changed. Click View expenses to refresh.');
+   page=list.page;total=list.total;
+   $('expenseTotals').textContent=(summary.currencies||[]).map(c=>money(c.total,c.currency)).join(' · ')||'No expenses';
+   $('expenseBreakdown').textContent=(summary.categories||[]).map(c=>`${c.category}: ${money(c.total,c.currency)}`).join(' · ')||'No active expenses in this period. Voided entries are excluded from totals.';
+   for(const row of list.expenses){
+    const tr=document.createElement('tr');
+    for(const value of [row.expense_date,`${row.title} · ${row.category}${row.note?' — '+row.note:''}`,money(row.amount,row.currency),row.payment_method,row.voided_at?`Voided: ${row.void_reason}`:'Active']){const td=document.createElement('td');td.textContent=value;tr.appendChild(td);}
+    const td=document.createElement('td');if(!row.voided_at){const btn=document.createElement('button');btn.type='button';btn.className='btn-nav';btn.textContent='Void';btn.onclick=()=>voidExpense(row,btn);td.appendChild(btn);}else td.textContent='—';tr.appendChild(td);$('expenseRows').appendChild(tr);
+   }
+   if(!list.expenses.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=6;td.textContent='No expenses on this page.';tr.appendChild(td);$('expenseRows').appendChild(tr);}
+   const pages=Math.max(1,Math.ceil(total/list.page_size));$('expensePages').textContent=`Page ${page} of ${pages} · ${total} records including voided entries`;$('expensePrev').disabled=page<=1;$('expenseNext').disabled=page>=pages;
+  }catch(e){if(authToken===token&&version===loadId){$('expenseTotals').textContent='Unavailable';$('expensePages').textContent=e.message;}}
+ }
+ $('btnOpenExpenses').addEventListener('click',()=>{
+  if(currentUser.role!=='Admin')return;openModal('expensesModal');$('expenseDate').max=shopToday();if(!$('expenseDate').value)$('expenseDate').value=shopToday();$('expenseAmountLabel').textContent=`Amount (${storeSettings.currency}) *`;recovery();refresh(1);
+ });
+ $('expenseFilters').addEventListener('submit',e=>{e.preventDefault();const from=$('expenseFrom').value,to=$('expenseTo').value;const days=(Date.parse(to)-Date.parse(from))/86400000;if(!Number.isFinite(days)||days<0||days>365){message('Select valid dates, up to 366 days at a time.');return;}filters={from,to,category:$('expenseFilterCategory').value};refresh(1);});
+ $('expenseToday').addEventListener('click',()=>{filters=null;$('expenseFilterCategory').value='';refresh(1);});
+ $('expensePrev').addEventListener('click',()=>refresh(Math.max(1,page-1)));$('expenseNext').addEventListener('click',()=>refresh(page+1));
+ async function save(recover=false){
+  if(busy||!authToken||currentUser.role!=='Admin')return;
+  const old=pending();if(old&&!recover){message('An earlier save is unconfirmed. Use Recover pending expense before recording another one.');recovery();return;}
+  let body=old;
+  if(!recover){
+   if(!$('expenseForm').reportValidity())return;
+   const raw=$('expenseAmount').value;if(!/^\d+(?:\.\d{1,2})?$/.test(raw)){message('Enter an amount with up to 2 decimal places.');return;}
+   body={request_id:crypto.randomUUID(),expense_date:$('expenseDate').value,category:$('expenseCategory').value,title:$('expenseTitle').value.trim(),amount:Number(raw),payment_method:$('expensePayment').value,note:$('expenseNote').value.trim()};
+  }
+  if(!body){message('No pending expense to recover.');return;}
+  if(body.expense_date>shopToday()){message('Use an expense date on or before today.');return;}
+  const token=authToken,key=pendingKey(),op=++actionId;busy=true;$('expenseSave').disabled=$('expenseRecover').disabled=true;message('Saving expense…');
+  writeSession(key,JSON.stringify(body));
+  function clearOwnPending(){try{if(JSON.parse(readSession(key)||'null')?.request_id===body.request_id)writeSession(key,null);}catch{}}
+  try{
+   const result=await post('/api/expenses',body);clearOwnPending();if(authToken!==token||op!==actionId)return;
+   $('expenseForm').reset();$('expenseDate').value=shopToday();filters={from:body.expense_date,to:body.expense_date,category:''};$('expenseFrom').value=filters.from;$('expenseTo').value=filters.to;$('expenseFilterCategory').value='';message(result.replayed?'Earlier expense confirmed. No duplicate was added.':'Expense saved.');await refresh(1);
+  }catch(e){if(e.status>=400&&e.status<500&&e.status!==409)clearOwnPending();if(authToken===token&&op===actionId)message(e.message+(pending()?' Use Recover pending expense to check the same request.':''));}
+  finally{if(authToken===token&&op===actionId){busy=false;$('expenseSave').disabled=$('expenseRecover').disabled=false;recovery();}}
+ }
+ async function voidExpense(row,button){
+  if(busy||!authToken)return;const reason=prompt(`Void ${row.title} (${money(row.amount,row.currency)})? Enter a reason. The record will be retained.`);if(reason===null)return;if(!reason.trim()||reason.trim().length>500){message('Enter a reason of 1 to 500 characters.');return;}
+  const token=authToken,op=++actionId;busy=true;button.disabled=true;
+  try{await post(`/api/expenses/${row.id}/void`,{reason:reason.trim()});if(authToken!==token||op!==actionId)return;message('Expense voided and excluded from totals.');await refresh(page);}
+  catch(e){if(authToken===token&&op===actionId)message(e.message);}
+  finally{if(authToken===token&&op===actionId){busy=false;button.disabled=false;}}
+ }
+ $('expenseForm').addEventListener('submit',e=>{e.preventDefault();save();});$('expenseRecover').addEventListener('click',()=>save(true));
+})();
+</script>
+
 </body>
 </html>
