@@ -15,6 +15,7 @@ const returnRoutes = require('./routes/returns');
 const stockRoutes = require('./routes/stock');
 const creditRoutes = require('./routes/credits');
 const reportRoutes = require('./routes/reports');
+const expenseRoutes = require('./routes/expenses');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -33,6 +34,7 @@ app.use('/api/returns', returnRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/credits', creditRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/expenses', expenseRoutes);
 
 // Database connection status.
 app.get('/api/health', async (req, res) => {
